@@ -94,9 +94,15 @@ const firstPic = p => {
 
 /* ---------- saved progress (this device, plus the account when available) ---------- */
 const KEY = 'dinohero.v1';
-const fresh = () => ({ v: 2, name: '', stars: 0, done: {}, words: {}, rate: 0.85, savedAt: 0, check: 'thumb', write: 'tiles', viSpeak: false, fw: null, voice: '' });
+/* the microphone only works on a secure website of its own, not inside another page or a file on the computer */
+const MIC_OK = (() => { try { return location.protocol === 'https:' && window.top === window.self; } catch (e) { return false; } })();
+const fresh = () => ({ v: 3, name: '', stars: 0, done: {}, words: {}, rate: 0.85, savedAt: 0, check: MIC_OK ? 'auto' : 'thumb', write: 'tiles', viSpeak: false, fw: null, voice: '' });
 /* older saves had the microphone check on by default; the microphone is parked for now */
-const migrate = o => { if (!o.v || o.v < 2) { o.check = 'thumb'; o.v = 2; } return o; };
+const migrate = o => {
+  if (!o.v || o.v < 2) { o.check = 'thumb'; o.v = 2; }
+  if (o.v < 3) { if (MIC_OK && o.check === 'thumb') o.check = 'auto'; o.v = 3; }   // on the website, switch the microphone on once
+  return o;
+};
 let S = fresh();
 let syncState = 'device';
 let dbDoc = null, pushing = false, again = false, pushTimer = 0;
@@ -612,7 +618,7 @@ function paintListen() {
     html = `<p class="verdict">Con nói to lên nhé!</p><div class="row">${hear}${hold('okhold', '👍 Bố mẹ đồng ý (giữ)')}</div><p class="hint">Bố mẹ nghe con nói, rồi giữ ngón tay cái để cho con qua.</p>`;
   } else {
     const miss = r.state === 'miss';
-    html = `<div class="row">${hear}<button class="mic" data-act="mic" aria-label="Ghi âm">🎤</button></div>
+    html = `<div class="row">${hear}<button class="mic" data-act="mic" aria-label="Ghi âm">🎤</button>${mine}</div>
       <p class="verdict">${miss ? 'Gần đúng rồi! Nghe lại và thử nữa nhé.' : 'Chạm vào micro và nói từ này nhé.'}</p>
       ${miss ? `<p class="heard">${r.heard ? 'Máy nghe thấy: ' + esc(r.heard) : 'Máy chưa nghe thấy gì.'}${r.err ? ' (' + esc(r.err) + ')' : ''}</p>` : ''}
       ${miss && r.tries >= 3 ? `<div class="row">${hold('okhold', '👍 Bố mẹ đồng ý (giữ)')}</div>` : ''}`;
@@ -745,8 +751,8 @@ function openPanel() {
   o.innerHTML = `<div class="panel" role="dialog" aria-label="Cài đặt cho phụ huynh"><h2>Dành cho phụ huynh</h2>
     <label for="pname">Tên của bé</label><input id="pname" type="text" maxlength="20" value="${esc(S.name)}">
     <label for="pcheck">Kiểm tra phát âm (bước Nghe và nhắc lại)</label>
-    <select id="pcheck"><option value="thumb" ${S.check === 'thumb' ? 'selected' : ''}>Phụ huynh nghe và giữ ngón tay cái (không dùng micro)</option><option value="auto" ${S.check === 'auto' ? 'selected' : ''}>Micro tự kiểm tra từ (thử nghiệm)</option><option value="parent" ${S.check === 'parent' ? 'selected' : ''}>Ghi âm, rồi phụ huynh quyết định (thử nghiệm)</option><option value="off" ${S.check === 'off' ? 'selected' : ''}>Tắt</option></select>
-    <p class="sync">Hai chế độ thử nghiệm cần micro và có thể hỏi quyền nhiều lần. Chế độ tự động gửi âm thanh tới dịch vụ giọng nói của trình duyệt (Apple hoặc Google). Bản ghi âm không bao giờ được lưu.</p>
+    <select id="pcheck"><option value="thumb" ${S.check === 'thumb' ? 'selected' : ''}>Phụ huynh nghe và giữ ngón tay cái (không dùng micro)</option><option value="auto" ${S.check === 'auto' ? 'selected' : ''}>Micro nghe và kiểm tra từ (khuyên dùng)</option><option value="parent" ${S.check === 'parent' ? 'selected' : ''}>Ghi âm, rồi phụ huynh quyết định</option><option value="off" ${S.check === 'off' ? 'selected' : ''}>Tắt</option></select>
+    <p class="sync">Hai chế độ dùng micro sẽ xin quyền dùng micro (chọn Cho phép). Chế độ tự động gửi âm thanh tới dịch vụ giọng nói của trình duyệt (Apple hoặc Google). Bản ghi âm chỉ nằm trong bộ nhớ để nghe lại và không bao giờ được lưu.</p>
     <label for="pwrite">Bước Viết (đánh vần cả từ)</label>
     <select id="pwrite"><option value="tiles" ${S.write !== 'keys' ? 'selected' : ''}>Chạm vào các chữ cái</option><option value="keys" ${S.write === 'keys' ? 'selected' : ''}>Gõ bằng bàn phím</option></select>
     <label for="pvi">Đọc hướng dẫn bằng giọng tiếng Việt</label>

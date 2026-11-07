@@ -1,6 +1,6 @@
 /* Saves the app on the device so it also opens without internet. A new build replaces the old copy. */
-const CACHE = 'dino-hero-202611071957';
-const SHELL = ['./', 'index.html', 'styles.css?v=202611071957', 'app.js?v=202611071957', 'manifest.webmanifest', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/face.jpg'];
+const CACHE = 'dino-hero-202611072127';
+const SHELL = ['./', 'index.html', 'styles.css?v=202611072127', 'app.js?v=202611072127', 'manifest.webmanifest', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/face.jpg'];
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)).then(() => self.skipWaiting()));
 });
