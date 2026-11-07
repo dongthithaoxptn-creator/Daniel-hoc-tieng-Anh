@@ -96,7 +96,7 @@ const firstPic = p => {
 const KEY = 'dinohero.v1';
 /* the microphone only works on a secure website of its own, not inside another page or a file on the computer */
 const MIC_OK = (() => { try { return location.protocol === 'https:' && window.top === window.self; } catch (e) { return false; } })();
-const fresh = () => ({ v: 3, name: '', stars: 0, done: {}, words: {}, rate: 0.85, savedAt: 0, check: MIC_OK ? 'auto' : 'thumb', write: 'tiles', viSpeak: false, fw: null, voice: '' });
+const fresh = () => ({ v: 3, name: '', stars: 0, done: {}, words: {}, rate: 0.85, savedAt: 0, check: MIC_OK ? 'auto' : 'thumb', write: 'tiles', viSpeak: false, fw: null, voice: '', nick: '', coach: true, praise: [], nudge: [] });
 /* older saves had the microphone check on by default; the microphone is parked for now */
 const migrate = o => {
   if (!o.v || o.v < 2) { o.check = 'thumb'; o.v = 2; }
@@ -234,6 +234,7 @@ const sfx = ok => tone(ok ? [[660, .12], [880, .12], [1175, .2]] : [[300, .18], 
 const speakSoon = (text, tok, step) => setTimeout(async () => {
   if (tok !== TOK) return;
   if (step) { await introVi(step); if (tok !== TOK) return; }
+  if (COACH.busy) { await COACH.busy; COACH.busy = null; if (tok !== TOK) return; }
   say(text);
 }, 300);
 /* letter names written the way a voice reads them aloud, so "a" is never read as the word "a" */
@@ -316,6 +317,7 @@ function render() {
   stopAudio();
   if (liveStop) liveStop();
   releaseMic();
+  clearTimeout(COACH.idleT);
   TOK++;
   if (!S.name && !S.skipName) { view = 'welcome'; return welcome(); }
   if (view === 'welcome') view = 'home';
@@ -399,6 +401,7 @@ function startReview() {
 }
 function renderMission() {
   releaseMic();
+  armIdle(22000);
   TOK++;
   const st = M.steps[M.si], lab = STEP[st];
   const sub = M.type === 'unit' ? (M.u.daily ? '5 từ mới hôm nay' : M.u.extra ? esc(M.u.title) : 'Unit ' + M.u.n + ' · ' + esc(M.u.title)) : 'Các từ cần ôn lại';
@@ -418,7 +421,7 @@ const award = (n = 1) => { S.stars += n; save(); };
 const STEPS = {
   listen() {
     const w = M.u.words[M.ord.listen[M.i]], tok = ++TOK;
-    dropRec(); M.rec = { tries: 0, state: 'idle', heard: '', url: null };
+    dropRec(); M.rec = { tries: 0, state: 'idle', heard: '', url: null }; COACH.qMiss = 0; armIdle(22000);
     $('#stage').innerHTML = `<div class="card big" id="lcard"><div class="pic xl">${w.p}</div><div class="word">${hl(w.w, M.u.L)}</div></div>
       <div id="lbody" class="stage" style="padding:0"></div>`;
     paintListen();
@@ -427,7 +430,7 @@ const STEPS = {
   /* two passes: first fill in the missing phonics letter of each word, then spell each whole word */
   write() {
     const u = M.u, n = u.words.length, tok = ++TOK;
-    M.wmiss = 0; M.wmissed = false; M.wlock = false; M.wfill = [];
+    M.wmiss = 0; M.wmissed = false; M.wlock = false; M.wfill = []; COACH.qMiss = 0; armIdle(22000);
     if (!M.worder) M.worder = shuffle(u.words.map((_, i) => i));
     const pass = M.i < n ? 0 : 1;
     const w = pass === 0 ? u.words[M.ord.write[M.i]] : u.words[M.worder[M.i - n]];
@@ -497,7 +500,7 @@ function makeChoices(target) {
   return shuffle([{ w: target, p: tp }, ...others.slice(0, 3)]);
 }
 function quizRender() {
-  const it = M.q[M.qi], tok = ++TOK; M.lock = false;
+  const it = M.q[M.qi], tok = ++TOK; M.lock = false; COACH.qMiss = 0; armIdle(22000);
   $('#stage').innerHTML = `<div class="prompt"><button class="btn round" data-act="hear" aria-label="Hear it again">🔊</button><span class="ptext">${esc(it.say)}</span></div>
     <div class="choices">${makeChoices(it.target).map(c => `<button class="choice" data-act="pick" data-w="${esc(c.w)}" aria-label="${esc(c.w)}"><span class="pic">${c.p}</span></button>`).join('')}</div>
     <p class="hint">${M.qi + 1} / ${M.q.length}</p>`;
@@ -630,7 +633,7 @@ function paintListen() {
 function lgood() {
   const r = M && M.rec; if (!r) return;
   r.state = 'ok';
-  if (!r.awarded) { r.awarded = 1; sfx(true); award(1); burst($('#lcard') || document.body); }
+  if (!r.awarded) { r.awarded = 1; coachRight(r.tries === 0); sfx(true); award(1); burst($('#lcard') || document.body); }
   paintListen();
 }
 
@@ -701,6 +704,7 @@ function rewardDaily() {
   view = 'reward';
   app.innerHTML = topbar() + `<main class="reward"><div class="egg pop" id="egg" aria-hidden="true">🌟</div><h2>Xong 5 từ hôm nay!</h2><p>⭐ +${gained}${lvUp ? ' · 💪 Lên cấp sức mạnh!' : ''}</p><p>Con đã học ${f.days} ngày. Mai gặp lại nhé!</p>
     <button class="btn go" data-act="home">Về bản đồ</button></main>`;
+  cheer(lvUp ? 'level' : 'daily', true);
   sfx(true); burst($('#egg')); say(`Great job, ${kid()}! See you tomorrow!`);
 }
 
@@ -713,6 +717,7 @@ function rewardUnit() {
   view = 'reward';
   app.innerHTML = topbar() + `<main class="reward"><div class="egg wob" id="egg" aria-hidden="true">🥚</div><h2 id="rt">Đang nở…</h2><p>⭐ +${gained}${lvUp ? ' · 💪 Lên cấp sức mạnh!' : ''}</p>
     <button class="btn go" data-act="home">Về bản đồ</button></main>`;
+  cheer(lvUp ? 'level' : 'unit', true);
   const tok = ++TOK;
   sleep(1700).then(() => {
     if (tok !== TOK || view !== 'reward') return;
@@ -728,6 +733,7 @@ function rewardReview() {
   view = 'reward';
   app.innerHTML = topbar() + `<main class="reward"><div class="egg pop" id="egg" aria-hidden="true">💪</div><h2>Tăng sức mạnh xong!</h2><p>⭐ +${gained}${lvUp ? ' · Lên cấp sức mạnh!' : ''}</p>
     <button class="btn go" data-act="home">Về bản đồ</button></main>`;
+  cheer(lvUp ? 'level' : 'great', true);
   sfx(true); burst($('#egg')); say(`Super strong, ${kid()}!`);
 }
 
@@ -750,6 +756,14 @@ function openPanel() {
   o.hidden = false;
   o.innerHTML = `<div class="panel" role="dialog" aria-label="Cài đặt cho phụ huynh"><h2>Dành cho phụ huynh</h2>
     <label for="pname">Tên của bé</label><input id="pname" type="text" maxlength="20" value="${esc(S.name)}">
+    <label for="pnick">Biệt danh ở nhà (dùng khi khen và nhắc)</label><input id="pnick" type="text" maxlength="20" value="${esc(S.nick || '')}" placeholder="${esc(S.name || 'Biệt danh')}">
+    <label for="pcoach">Lời khen và nhắc nhở</label>
+    <select id="pcoach"><option value="on" ${S.coach === false ? '' : 'selected'}>Bật</option><option value="off" ${S.coach === false ? 'selected' : ''}>Tắt</option></select>
+    <label for="ppraise">Thêm lời khen của riêng bạn (mỗi dòng một câu, dùng {n} cho biệt danh)</label>
+    <textarea id="ppraise" rows="3" placeholder="{n} yêu giỏi quá!">${esc((S.praise || []).join('\n'))}</textarea>
+    <label for="pnudge">Thêm lời nhắc nhở của riêng bạn</label>
+    <textarea id="pnudge" rows="3" placeholder="{n} thối tập trung nào!">${esc((S.nudge || []).join('\n'))}</textarea>
+    <div class="row"><button class="btn" data-act="coachpreview" data-k="streak3">👀 Xem thử lời khen</button><button class="btn" data-act="coachpreview" data-k="nudge3">👀 Xem thử lời nhắc</button></div>
     <label for="pcheck">Kiểm tra phát âm (bước Nghe và nhắc lại)</label>
     <select id="pcheck"><option value="thumb" ${S.check === 'thumb' ? 'selected' : ''}>Phụ huynh nghe và giữ ngón tay cái (không dùng micro)</option><option value="auto" ${S.check === 'auto' ? 'selected' : ''}>Micro nghe và kiểm tra từ (khuyên dùng)</option><option value="parent" ${S.check === 'parent' ? 'selected' : ''}>Ghi âm, rồi phụ huynh quyết định</option><option value="off" ${S.check === 'off' ? 'selected' : ''}>Tắt</option></select>
     <p class="sync">Hai chế độ dùng micro sẽ xin quyền dùng micro (chọn Cho phép). Chế độ tự động gửi âm thanh tới dịch vụ giọng nói của trình duyệt (Apple hoặc Google). Bản ghi âm chỉ nằm trong bộ nhớ để nghe lại và không bao giờ được lưu.</p>
@@ -926,7 +940,7 @@ function startSP(key) {
 }
 function renderSP() {
   const tok = ++TOK, info = SPK[M.key], q = M.qs[M.qi];
-  M.lock = false; M.miss = false; M.sel = null; M.fill = []; M.phase = 'look'; M.cmiss = 0; M.relook = false; M.cfill = [];
+  M.lock = false; M.miss = false; M.sel = null; M.fill = []; M.phase = 'look'; M.cmiss = 0; M.relook = false; M.cfill = []; COACH.qMiss = 0; armIdle(22000);
   app.innerHTML = `<header class="mhead"><button class="x" data-act="practice" aria-label="Back to practice">✕</button>
     <div class="mtitle"><h2>${info.title}</h2><p>${info.en} · ${info.part}</p></div>
     <div class="dots" aria-hidden="true">${M.qs.map((_, i) => `<i class="${i < M.qi ? 'on' : i === M.qi ? 'now' : ''}"></i>`).join('')}</div></header>
@@ -975,11 +989,12 @@ function renderSP() {
 function spOK(el) {
   if (M.lock) return;
   M.lock = true; sfx(true); if (el) burst(el);
+  coachRight(!M.miss);
   if (!M.miss) { M.right++; award(1); }
   setTimeout(() => { M.qi++; if (M.qi >= M.qs.length) spDone(); else renderSP(); }, 1000);
 }
 function spBad(el) {
-  sfx(false); M.miss = true;
+  sfx(false); M.miss = true; coachWrong();
   if (el) { el.classList.remove('shake'); void el.offsetWidth; el.classList.add('shake'); }
 }
 function spDone() {
@@ -991,6 +1006,7 @@ function spDone() {
   app.innerHTML = topbar() + `<main class="reward"><div class="egg pop" aria-hidden="true">${M.right === n ? '🏆' : M.right >= 3 ? '🏅' : '💪'}</div>
     <h2>Đúng ngay lần đầu: ${M.right}/${n}!</h2><p>⭐ +${gained}${lvUp ? ' · 💪 Lên cấp sức mạnh!' : ''}</p>
     <div class="row"><button class="btn go" data-act="spagain">Chơi lại</button><button class="btn" data-act="practice">Luyện thêm</button></div></main>`;
+  cheer(lvUp ? 'level' : M.right >= n - 1 ? 'great' : 'tryagain', true);
   sfx(true); burst($('.egg')); say(M.right >= 4 ? `Super, ${kid()}!` : `Good try, ${kid()}!`);
 }
 
@@ -1037,13 +1053,92 @@ function letterChoices(word, idx) {
 /*WR-END*/
 function writeOK(el) {
   sfx(true); if (el) burst(el);
+  coachRight(!M.wmissed);
   if (!M.wmissed) award(1);
   setTimeout(() => { M.i++; if (M.i >= M.u.words.length * 2) nextStep(); else STEPS.write(); }, 900);
 }
 function writeBad(el) {
-  sfx(false); M.wmissed = true; M.wmiss++;
+  sfx(false); M.wmissed = true; M.wmiss++; coachWrong();
   if (el) { el.classList.remove('shake'); void el.offsetWidth; el.classList.add('shake'); }
   if (M.wmiss >= 2 && M.wcur.target) document.querySelectorAll('#wslots .sl').forEach((s, k) => { s.dataset.ghost = M.wcur.target[k]; });
+}
+
+/* ---------- the coach: praise, gentle nudges, and a call back when he drifts off ---------- */
+/* {n} is replaced by his pet name (or his name). Lines you add in the grown-up settings are mixed in with these. */
+const BANK = {
+  streak3: ['{n} yêu giỏi quá!', 'Hay quá, đúng liền 3 câu rồi!', 'Giỏi lắm {n} ơi!'],
+  streak5: ['Wow, 5 câu liền luôn! {n} giỏi quá trời!', 'Đúng liền 5 câu, tuyệt vời!', '{n} đang chạy như tên lửa luôn!'],
+  streak8: ['Siêu quá! Bố mẹ tự hào về {n} lắm!', 'Đúng liền nhiều câu quá, đỉnh quá {n} ơi!', '{n} giỏi như siêu nhân vậy!'],
+  comeback: ['Đấy, {n} làm được rồi! Cố gắng là giỏi!', 'Sai rồi sửa lại được, giỏi lắm!', 'Thấy chưa, cố một chút là đúng ngay!'],
+  nudge2: ['Từ từ nào {n}, nghe kỹ rồi chọn nhé!', 'Bình tĩnh nào, nhìn kỹ lại hình nhé!', 'Không sao đâu, thử lại nào {n}!'],
+  nudge3: ['{n} thối tập trung nào!', 'Tập trung nào {n} ơi, mình làm được mà!', 'Nhìn kỹ, nghe kỹ nhé {n}!'],
+  idle: ['Ơ, {n} đâu rồi? Tập trung nào!', '{n} ơi, mình học tiếp nhé!', 'Nào nào, làm tiếp thôi {n} ơi!'],
+  rest: ['Mình hít thở một chút rồi làm tiếp nhé {n}!', 'Mệt thì nghỉ xíu, rồi mình làm lại nhé!'],
+  unit: ['Xong bài rồi! {n} yêu giỏi quá!', 'Hoàn thành rồi, bố mẹ khen {n} nhiều lắm!', 'Giỏi quá, {n} nhận được một chú khủng long nè!'],
+  level: ['Lên cấp rồi! {n} mạnh như siêu nhân luôn!', 'Wow, sức mạnh tăng lên rồi {n} ơi!'],
+  daily: ['Xong 5 từ hôm nay! Mai mình học tiếp nhé {n}!', '{n} học đều mỗi ngày, giỏi lắm!'],
+  great: ['Xuất sắc! {n} làm gần đúng hết rồi!', 'Giỏi quá {n} ơi, lại một trò xong nè!'],
+  tryagain: ['Không sao, mình chơi lại để giỏi hơn nhé {n}!', 'Cố lên {n}, lần sau sẽ giỏi hơn nữa!']
+};
+const NUDGE_KINDS = new Set(['nudge2', 'nudge3', 'idle', 'rest', 'tryagain']);
+const COACH = { streak: 0, wrongRun: 0, qMiss: 0, lastAt: 0, last: '', hide: 0, idleT: 0, idleN: 0, busy: null, noIdle: false };
+const nick = () => S.nick || S.name || 'con';
+function coachEl() {
+  let e = $('#coach');
+  if (!e) { e = document.createElement('div'); e.id = 'coach'; e.setAttribute('role', 'status'); e.setAttribute('aria-live', 'polite'); document.body.appendChild(e); }
+  return e;
+}
+function pickMsg(kind) {
+  const pool = (BANK[kind] || []).concat(NUDGE_KINDS.has(kind) ? (S.nudge || []) : (S.praise || []));
+  if (!pool.length) return '';
+  let t, tries = 0;
+  do { t = pool[Math.floor(Math.random() * pool.length)]; tries++; } while (pool.length > 1 && t === COACH.last && tries < 8);
+  COACH.last = t;
+  return t.replace(/\{n\}/g, nick());
+}
+/* show a message in a speech bubble; ordinary ones wait at least 6 seconds apart so he is not nagged */
+function cheer(kind, force) {
+  if (S.coach === false) return;
+  const now = Date.now();
+  if (!force && now - COACH.lastAt < 6000) return;
+  const text = pickMsg(kind); if (!text) return;
+  COACH.lastAt = now;
+  const warn = NUDGE_KINDS.has(kind), el = coachEl();
+  el.className = warn ? 'warn' : '';
+  el.innerHTML = `<span class="cemo">${warn ? '💬' : '🌟'}</span><span></span>`;
+  el.lastChild.textContent = text;
+  void el.offsetWidth; el.classList.add('show');
+  clearTimeout(COACH.hide); COACH.hide = setTimeout(() => el.classList.remove('show'), 4500);
+  if (S.viSpeak && viVoice()) COACH.busy = sayVi(text);
+  return text;
+}
+function coachRight(first) {
+  COACH.wrongRun = 0;
+  if (first) {
+    COACH.streak++;
+    if (COACH.streak === 3) cheer('streak3');
+    else if (COACH.streak === 5) cheer('streak5');
+    else if (COACH.streak >= 8 && (COACH.streak - 8) % 5 === 0) cheer('streak8');
+  } else {
+    COACH.streak = 0;
+    if (COACH.qMiss >= 2) cheer('comeback');
+  }
+}
+function coachWrong() {
+  COACH.streak = 0; COACH.qMiss++; COACH.wrongRun++;
+  if (COACH.wrongRun === 8) cheer('rest', true);
+  else if (COACH.wrongRun === 4) cheer('nudge3');
+  else if (COACH.qMiss === 2) cheer('nudge2');
+}
+/* if he stops tapping for a while, call him back; never more than twice in a row */
+function armIdle(ms) {
+  clearTimeout(COACH.idleT);
+  if (S.coach !== false && !COACH.noIdle && view === 'mission') COACH.idleT = setTimeout(idleFire, ms);
+}
+function idleFire() {
+  if (view !== 'mission' || document.hidden || COACH.noIdle || COACH.idleN >= 2) return;
+  COACH.idleN++; cheer('idle');
+  if (COACH.idleN < 2) armIdle(45000);
 }
 
 /* ---------- actions ---------- */
@@ -1175,7 +1270,7 @@ const ACT = {
     const w = M.u.words[M.ord.listen[M.i]].w;
     r.heard = res.heard[0] || ''; r.err = res.srErr || '';
     if (matches(w, res.heard)) { lgood(); return; }
-    r.tries++; r.state = 'miss'; sfx(false);
+    r.tries++; r.state = 'miss'; sfx(false); coachWrong();
     const c = $('#lcard'); if (c) { c.classList.remove('shake'); void c.offsetWidth; c.classList.add('shake'); }
     paintListen();
     setTimeout(() => { if (tok === TOK) say(w); }, 500);
@@ -1202,26 +1297,34 @@ const ACT = {
     const it = M.q[M.qi], w = t.dataset.w;
     if (w === it.target) {
       M.lock = true; t.classList.add('right'); sfx(true); burst(t);
+      coachRight(!M.tried);
       if (!M.tried) { mark(it.target, true); award(1); } else { save(); }
       setTimeout(() => { M.qi++; M.tried = false; if (M.qi >= M.q.length) quizDone(); else quizRender(); }, 1000);
     } else {
-      t.classList.remove('shake'); void t.offsetWidth; t.classList.add('wrong', 'shake'); sfx(false);
+      t.classList.remove('shake'); void t.offsetWidth; t.classList.add('wrong', 'shake'); sfx(false); coachWrong();
       if (!M.tried) { M.tried = true; mark(it.target, false); save(); }
       say(it.say);
     }
   },
+  coachpreview(t) { const pn = $('#pnick'); if (pn) S.nick = pn.value.trim(); const pc = $('#pcoach'); if (pc) S.coach = pc.value !== 'off'; const pp = $('#ppraise'), pd = $('#pnudge'); const lines = v => String(v || '').split('\n').map(x => x.trim()).filter(Boolean); if (pp) S.praise = lines(pp.value); if (pd) S.nudge = lines(pd.value); cheer(t.dataset.k, true); },
   testvoice() { S.rate = +$('#prate').value; const pv = $('#pvoice'); if (pv) S.voice = pv.value; say('Hello! This is how I sound.'); },
   reset(t) {
     if (!resetArmed) { resetArmed = 1; t.textContent = 'Bấm lần nữa để xóa tất cả'; setTimeout(() => { resetArmed = 0; const b = $('#reset'); if (b) b.textContent = 'Xóa toàn bộ tiến độ'; }, 4000); return; }
     resetArmed = 0; const name = S.name; S = { ...fresh(), name }; save(); ACT.closepanel(null, true);
   },
   closepanel(t, skipRead) {
-    if (!skipRead) { const n = $('#pname'), r = $('#prate'); if (n) { S.name = n.value.trim(); S.skipName = !S.name; } if (r) S.rate = +r.value; const wr = $('#pwrite'); if (wr) S.write = wr.value; const pv = $('#pvoice'); if (pv) S.voice = pv.value; const vs = $('#pvi'); if (vs && !vs.disabled) S.viSpeak = vs.value === 'on'; const c = $('#pcheck'); if (c) { S.check = c.value; REC.denied = false; REC.srBroken = false; REC.srOnly = false; } save(); }
+    if (!skipRead) { const n = $('#pname'), r = $('#prate'); if (n) { S.name = n.value.trim(); S.skipName = !S.name; } if (r) S.rate = +r.value; const wr = $('#pwrite'); if (wr) S.write = wr.value; const pv = $('#pvoice'); if (pv) S.voice = pv.value;
+    const lines = v => String(v || '').split('\n').map(x => x.trim()).filter(Boolean).slice(0, 20);
+    const pn = $('#pnick'); if (pn) S.nick = pn.value.trim();
+    const pc = $('#pcoach'); if (pc) S.coach = pc.value !== 'off';
+    const pp = $('#ppraise'); if (pp) S.praise = lines(pp.value);
+    const pd = $('#pnudge'); if (pd) S.nudge = lines(pd.value); const vs = $('#pvi'); if (vs && !vs.disabled) S.viSpeak = vs.value === 'on'; const c = $('#pcheck'); if (c) { S.check = c.value; REC.denied = false; REC.srBroken = false; REC.srOnly = false; } save(); }
     $('#overlay').hidden = true; $('#overlay').innerHTML = ''; view = 'home'; render();
   }
 };
 /* if the face picture is not there (the private copies), the Greeny drawing shows instead */
 document.addEventListener('error', e => { const t = e.target; if (t && t.classList && t.classList.contains('face') && t.parentNode) t.parentNode.classList.add('noface'); }, true);
+document.addEventListener('pointerdown', () => { COACH.idleN = 0; armIdle(22000); }, true);
 document.addEventListener('click', e => {
   const t = e.target.closest('[data-act]'); if (!t) return;
   const f = ACT[t.dataset.act]; if (f) f(t, e);
