@@ -94,7 +94,7 @@ const firstPic = p => {
 
 /* ---------- saved progress (this device, plus the account when available) ---------- */
 const KEY = 'dinohero.v1';
-const fresh = () => ({ v: 2, name: '', stars: 0, done: {}, words: {}, rate: 0.85, savedAt: 0, check: 'thumb', write: 'tiles', viSpeak: false, fw: null });
+const fresh = () => ({ v: 2, name: '', stars: 0, done: {}, words: {}, rate: 0.85, savedAt: 0, check: 'thumb', write: 'tiles', viSpeak: false, fw: null, voice: '' });
 /* older saves had the microphone check on by default; the microphone is parked for now */
 const migrate = o => { if (!o.v || o.v < 2) { o.check = 'thumb'; o.v = 2; } return o; };
 let S = fresh();
@@ -140,8 +140,11 @@ loadVoices();
 try { speechSynthesis.onvoiceschanged = loadVoices; } catch (e) {}
 /* English only. Mac novelty voices (Albert, Cellos, Zarvox...) are skipped: they sing or distort words. */
 const NOVELTY = ['albert', 'bad news', 'bahh', 'bells', 'boing', 'bubbles', 'cellos', 'deranged', 'good news', 'hysterical', 'jester', 'organ', 'superstar', 'trinoids', 'whisper', 'wobble', 'zarvox', 'fred', 'junior', 'kathy', 'ralph', 'princess'];
+const voiceKey = v => v.voiceURI || v.name;
+const englishVoices = () => voices.filter(v => /^en([-_]|$)/i.test(v.lang || '') && !NOVELTY.some(n => v.name.toLowerCase().includes(n)));
 function pickVoice() {
-  const en = voices.filter(v => /^en([-_]|$)/i.test(v.lang || '') && !NOVELTY.some(n => v.name.toLowerCase().includes(n)));
+  const en = englishVoices();
+  if (S.voice) { const chosen = en.find(v => voiceKey(v) === S.voice); if (chosen) return chosen; }
   const us = en.filter(v => /^en[-_]us$/i.test(v.lang));
   const pool = us.length ? us : en;
   const names = ['samantha', 'ava', 'allison', 'nicky', 'karen', 'serena', 'google us english', 'zira', 'aria', 'jenny'];
@@ -298,7 +301,7 @@ let view = 'home', M = null, TOK = 0;
 function topbar(extra = '') {
   const lv = level(), pct = (S.stars % 15) / 15 * 100;
   return `<header class="top">
-    <button class="hero-btn" data-act="hero" aria-label="Tap ${HERO} to say hi">${heroSVG(lv)}</button>
+    <button class="hero-btn" data-act="hero" aria-label="Chạm để chào"><img class="face" src="icons/face.jpg" alt=""><span class="greeny">${heroSVG(lv)}</span><span class="lvbadge">${lv}</span></button>
     <div class="meter"><div class="lv">Sức mạnh cấp ${lv}</div><div class="bar" aria-hidden="true"><i style="width:${pct}%"></i></div></div>
     <div class="stars" aria-label="${S.stars} stars">⭐ ${S.stars}</div>${extra}</header>`;
 }
@@ -749,6 +752,9 @@ function openPanel() {
     <label for="pvi">Đọc hướng dẫn bằng giọng tiếng Việt</label>
     <select id="pvi" ${vi ? '' : 'disabled'}><option value="off" ${S.viSpeak ? '' : 'selected'}>Tắt (chỉ hiện chữ)</option><option value="on" ${S.viSpeak ? 'selected' : ''}>Bật</option></select>
     <p class="sync">${vi ? 'Giọng tiếng Việt tìm thấy: ' + esc(vi.name) : 'Thiết bị này không có giọng đọc tiếng Việt, nên hướng dẫn chỉ hiện trên màn hình.'}</p>
+    <label for="pvoice">Giọng đọc tiếng Anh</label>
+    <select id="pvoice"><option value="">Tự chọn giọng tốt nhất</option>${englishVoices().map(v => `<option value="${esc(voiceKey(v))}" ${S.voice === voiceKey(v) ? 'selected' : ''}>${esc(v.name)} (${esc(v.lang)})</option>`).join('')}</select>
+    <p class="sync">Giọng có chữ "Enhanced" hoặc "Premium" nghe tự nhiên hơn. Trên iPad, tải thêm ở: Cài đặt › Trợ năng › Nội dung được đọc › Giọng nói › Tiếng Anh (Settings › Accessibility › Spoken Content › Voices › English), rồi mở lại trang này.</p>
     <label for="prate">Tốc độ giọng đọc tiếng Anh</label><input id="prate" type="range" min="0.6" max="1.1" step="0.05" value="${S.rate}">
     <button class="btn" data-act="testvoice">🔊 Thử giọng</button>
     <p class="sync">Giọng máy đang dùng: ${en ? esc(en.name) + ' (' + esc(en.lang) + ')' : 'không tìm thấy, dùng giọng mặc định của thiết bị'}</p>
@@ -1038,7 +1044,7 @@ function writeBad(el) {
 const ACT = {
   start() { const v = $('#wname').value.trim(); S.name = v; S.skipName = !v; save(); view = 'home'; render(); },
   skipname() { S.skipName = true; save(); view = 'home'; render(); },
-  hero(t) { t.classList.remove('flex'); void t.offsetWidth; t.classList.add('flex'); say(`Hi ${kid()}! I'm ${HERO}. Let's learn English!`); },
+  hero(t) { t.classList.remove('flex'); void t.offsetWidth; t.classList.add('flex'); say(`Hi ${kid()}! Let's learn English!`); },
   home() { dropRec(); view = 'home'; M = null; render(); },
   practice() { dropRec(); M = null; view = 'practice'; render(); },
   spstart(t) { startSP(t.dataset.key); },
@@ -1198,16 +1204,18 @@ const ACT = {
       say(it.say);
     }
   },
-  testvoice() { S.rate = +$('#prate').value; say('Hello! This is how I sound.'); },
+  testvoice() { S.rate = +$('#prate').value; const pv = $('#pvoice'); if (pv) S.voice = pv.value; say('Hello! This is how I sound.'); },
   reset(t) {
     if (!resetArmed) { resetArmed = 1; t.textContent = 'Bấm lần nữa để xóa tất cả'; setTimeout(() => { resetArmed = 0; const b = $('#reset'); if (b) b.textContent = 'Xóa toàn bộ tiến độ'; }, 4000); return; }
     resetArmed = 0; const name = S.name; S = { ...fresh(), name }; save(); ACT.closepanel(null, true);
   },
   closepanel(t, skipRead) {
-    if (!skipRead) { const n = $('#pname'), r = $('#prate'); if (n) { S.name = n.value.trim(); S.skipName = !S.name; } if (r) S.rate = +r.value; const wr = $('#pwrite'); if (wr) S.write = wr.value; const vs = $('#pvi'); if (vs && !vs.disabled) S.viSpeak = vs.value === 'on'; const c = $('#pcheck'); if (c) { S.check = c.value; REC.denied = false; REC.srBroken = false; REC.srOnly = false; } save(); }
+    if (!skipRead) { const n = $('#pname'), r = $('#prate'); if (n) { S.name = n.value.trim(); S.skipName = !S.name; } if (r) S.rate = +r.value; const wr = $('#pwrite'); if (wr) S.write = wr.value; const pv = $('#pvoice'); if (pv) S.voice = pv.value; const vs = $('#pvi'); if (vs && !vs.disabled) S.viSpeak = vs.value === 'on'; const c = $('#pcheck'); if (c) { S.check = c.value; REC.denied = false; REC.srBroken = false; REC.srOnly = false; } save(); }
     $('#overlay').hidden = true; $('#overlay').innerHTML = ''; view = 'home'; render();
   }
 };
+/* if the face picture is not there (the private copies), the Greeny drawing shows instead */
+document.addEventListener('error', e => { const t = e.target; if (t && t.classList && t.classList.contains('face') && t.parentNode) t.parentNode.classList.add('noface'); }, true);
 document.addEventListener('click', e => {
   const t = e.target.closest('[data-act]'); if (!t) return;
   const f = ACT[t.dataset.act]; if (f) f(t, e);
