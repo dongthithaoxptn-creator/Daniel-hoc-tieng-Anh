@@ -186,33 +186,20 @@ function ttsSay(text, id) {
 function say(text) {
   const id = ++sayId;
   stopAudio();
-  /* recorded voice first: the generated voice pack (voice/), then the real-voice word clips (audio/, private copies only), then the computer voice */
-  const key = slug(text), A = window.WORD_AUDIO;
-  const pid = window.VOICE_INDEX && window.VOICE_INDEX[key], pack = pid !== undefined && window.VOICE_PACKS && window.VOICE_PACKS[pid];
-  if (pid !== undefined && !pack) loadPack(pid);   // not here yet: the computer voice speaks this time, the recording the next
-  const src = pack && pack[key] ? pack[key] : A && A[key] ? 'audio/' + A[key] : null;
-  if (!src) return ttsSay(text, id);
+  const A = window.WORD_AUDIO, file = A && A[slug(text)];
+  if (!file) return ttsSay(text, id);
   return new Promise(res => {
     const fallback = () => { if (id === sayId) ttsSay(text, id).then(res); else res(); };
     try {
       try { speechSynthesis.cancel(); } catch (e) {}
-      const a = new Audio(src); curAudio = a;
+      const a = new Audio('audio/' + file); curAudio = a;
       a.onended = () => res(); a.onerror = fallback;
       const p = a.play(); if (p && p.catch) p.catch(fallback);
       setTimeout(res, 6000);
     } catch (e) { fallback(); }
   });
 }
-/* the voice pack: voice/index.js says which pack holds each recording, and the packs (about 120 recordings each) load one after another in the background */
-const packLoading = {};
-function loadScript(src) { return new Promise(res => { try { const sc = document.createElement('script'); sc.src = src; sc.onload = () => res(true); sc.onerror = () => res(false); document.head.appendChild(sc); } catch (e) { res(false); } }); }
-function loadPack(pid) { if (!packLoading[pid]) packLoading[pid] = loadScript('voice/pack-' + pid + '.js'); return packLoading[pid]; }
-async function loadAudioIndex() {
-  loadScript('audio/index.js');
-  if (!(await loadScript('voice/index.js')) || !window.VOICE_INDEX) return;
-  const ids = [...new Set(Object.values(window.VOICE_INDEX))].sort((a, b) => a - b);
-  for (const id of ids) await loadPack(id);
-}
+function loadAudioIndex() { try { const sc = document.createElement('script'); sc.src = 'audio/index.js'; sc.onerror = () => {}; document.head.appendChild(sc); } catch (e) {} }
 /* Vietnamese guidance is spoken only when the device has a real Vietnamese voice; it never falls back to an English voice */
 const viVoice = () => voices.find(v => /^vi([-_]|$)/i.test(v.lang || '')) || null;
 function sayVi(text) {
@@ -883,7 +870,7 @@ function syncText() {
     : 'Tiến độ chỉ được lưu trên thiết bị này. Mở trang khi đã đăng nhập Claude để đồng bộ.';
 }
 function openPanel() {
-  const o = $('#overlay'), en = pickVoice(), vi = viVoice(), nclips = window.WORD_AUDIO ? Object.keys(window.WORD_AUDIO).length : 0, nvoice = window.VOICE_INDEX ? Object.keys(window.VOICE_INDEX).length : 0, npacks = window.VOICE_PACKS ? Object.keys(window.VOICE_PACKS).length : 0, ntotal = window.VOICE_INDEX ? new Set(Object.values(window.VOICE_INDEX)).size : 0;
+  const o = $('#overlay'), en = pickVoice(), vi = viVoice(), nclips = window.WORD_AUDIO ? Object.keys(window.WORD_AUDIO).length : 0;
   o.hidden = false;
   o.innerHTML = `<div class="panel" role="dialog" aria-label="Cài đặt cho phụ huynh"><h2>Dành cho phụ huynh</h2>
     <label for="pname">Tên của bé</label><input id="pname" type="text" maxlength="20" value="${esc(S.name)}">
@@ -912,7 +899,7 @@ function openPanel() {
     <label for="prate">Tốc độ giọng đọc tiếng Anh</label><input id="prate" type="range" min="0.6" max="1.1" step="0.05" value="${S.rate}">
     <button class="btn" data-act="testvoice">🔊 Thử giọng</button>
     <p class="sync">Giọng máy đang dùng: ${en ? esc(en.name) + ' (' + esc(en.lang) + ')' : 'không tìm thấy, dùng giọng mặc định của thiết bị'}</p>
-    <p class="sync">${nvoice ? 'Giọng đọc tự nhiên: ' + nvoice + ' từ và câu (đã tải ' + npacks + '/' + ntotal + ' gói). Phần còn lại dùng giọng máy.' : 'Chưa có gói giọng đọc tự nhiên (thư mục voice).'}${nclips ? ' Bản ghi âm giọng người thật: ' + nclips + ' từ (chỉ dùng nếu gói giọng không có).' : ''}</p>
+    <p class="sync">${nclips ? 'Bản ghi âm giọng người thật: ' + nclips + ' từ. Các từ còn lại dùng giọng máy.' : 'Chưa có thư mục audio, nên mọi từ dùng giọng máy.'}</p>
     <p class="sync">${syncText()}</p>
     <button class="btn danger" id="reset" data-act="reset">Xóa toàn bộ tiến độ</button>
     <button class="btn go" data-act="closepanel">Lưu và đóng</button></div>`;
