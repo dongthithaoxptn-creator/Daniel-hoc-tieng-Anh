@@ -179,6 +179,17 @@ h1,h2,p{margin:0}
 #coach.warn{border-color:#ff9f43}
 #coach .cemo{font-size:1.8rem}
 .panel textarea{font:inherit; padding:10px 12px; border-radius:14px; border:2px solid #cfe0d5; width:100%; background:#fff; color:var(--ink); resize:vertical}
+.flip{width:min(100%,460px); height:min(68vw,330px); cursor:pointer; -webkit-user-select:none}
+.flip .inner{position:relative; width:100%; height:100%}
+.flip .side{width:100%; height:100%; box-sizing:border-box; justify-content:center}
+.flip .back{display:none; background:#fff7d6; gap:6px}
+.flip.on .front{display:none}
+.flip.on .back{display:flex}
+.flip.turning .inner{animation:turn .36s ease-in-out}
+@keyframes turn{0%{transform:scaleX(1)}50%{transform:scaleX(0.02)}100%{transform:scaleX(1)}}
+.flip .mean{font-weight:700; font-size:clamp(1.7rem,7vw,2.7rem); text-align:center; text-wrap:balance; color:var(--leaf-d); line-height:1.15}
+.flip .sub{font-family:var(--f-word); color:var(--muted); font-size:1.1rem}
+@media (prefers-reduced-motion: reduce){ .flip.turning .inner{animation:none} }
 .spark{position:fixed; z-index:30; pointer-events:none; font-size:1.6rem; animation:spark .9s ease-out forwards}
 @keyframes spark{to{transform:translate(var(--dx),var(--dy)) scale(.4); opacity:0}}
 @media (prefers-reduced-motion: no-preference){

@@ -92,6 +92,17 @@ const firstPic = p => {
   return m ? m[0] : p;
 };
 
+/* Vietnamese meaning of every word the app teaches */
+const VI = {"ambulance":"xe cứu thương","angry":"tức giận","ant":"con kiến","apple":"quả táo","arm":"cánh tay","artist":"họa sĩ","astronaut":"phi hành gia","baby":"em bé","badminton":"cầu lông","bag":"cái cặp, cái túi","ball":"quả bóng","balloon":"quả bóng bay","banana":"quả chuối","bananas":"những quả chuối","bank":"ngân hàng","baseball":"bóng chày","bat":"con dơi","bath":"bồn tắm","beach":"bãi biển","bear":"con gấu","bed":"cái giường","bee":"con ong","bell":"cái chuông","bicycle":"xe đạp","bike":"xe đạp","bird":"con chim","black":"màu đen","blue":"màu xanh dương","boat":"chiếc thuyền","book":"quyển sách","boots":"đôi ủng","bowl":"cái bát","boxing":"quyền anh","boy":"bé trai","brain":"bộ não","bread":"bánh mì","broccoli":"súp lơ xanh","brown":"màu nâu","builder":"thợ xây","bus":"xe buýt","butterfly":"con bướm","cake":"cái bánh ngọt","camel":"con lạc đà","camera":"máy ảnh","camping":"cắm trại","can":"cái lon","candy":"kẹo","cap":"mũ lưỡi trai","car":"xe ô tô","carrot":"củ cà rốt","castle":"lâu đài","cat":"con mèo","chair":"cái ghế","cheese":"phô mai","cherry":"quả anh đào","chicken":"con gà","chips":"khoai tây chiên","chocolate":"sô cô la","chopsticks":"đôi đũa","circle":"hình tròn","clock":"cái đồng hồ","clocks":"những chiếc đồng hồ","cloud":"đám mây","coconut":"quả dừa","coffee":"cà phê","cold":"lạnh","computer":"máy tính","cook":"đầu bếp","cookie":"bánh quy","cooking":"nấu ăn","cow":"con bò","crab":"con cua","crayon":"bút sáp màu","crocodile":"con cá sấu","cup":"cái cốc","cycling":"đạp xe","dancing":"nhảy múa","deer":"con hươu","desk":"cái bàn học","diamond":"hình thoi","doctor":"bác sĩ","dog":"con chó","dolphin":"cá heo","door":"cái cửa","dress":"cái váy","drum":"cái trống","duck":"con vịt","eagle":"chim đại bàng","ear":"cái tai","egg":"quả trứng","eight":"số tám","eighteen":"số mười tám","elephant":"con voi","eleven":"số mười một","eye":"con mắt","face":"khuôn mặt","family":"gia đình","farmer":"nông dân","father":"bố","fifteen":"số mười lăm","finger":"ngón tay","fire":"ngọn lửa","firefighter":"lính cứu hỏa","fish":"con cá","fishing":"câu cá","five":"số năm","flower":"bông hoa","foot":"bàn chân","football":"bóng đá","fork":"cái nĩa","four":"số bốn","fourteen":"số mười bốn","fox":"con cáo","friend":"người bạn","frog":"con ếch","garden":"khu vườn","garlic":"củ tỏi","gate":"cái cổng","giraffe":"hươu cao cổ","girl":"bé gái","glasses":"cái kính","globe":"quả địa cầu","gloves":"đôi găng tay","goat":"con dê","golf":"gôn","grandfather":"ông","grandmother":"bà","grapes":"chùm nho","green":"màu xanh lá","guitar":"đàn ghi-ta","hair":"tóc","hamburger":"bánh hăm-bơ-gơ","hamster":"chuột hamster","hand":"bàn tay","happy":"vui vẻ","hat":"cái mũ","head":"cái đầu","heart":"trái tim","helicopter":"máy bay trực thăng","hippo":"hà mã","horse":"con ngựa","hospital":"bệnh viện","hot":"nóng","hotel":"khách sạn","house":"ngôi nhà","ice cream":"kem","jacket":"áo khoác","juice":"nước ép","kangaroo":"chuột túi","key":"chìa khóa","king":"nhà vua","kite":"con diều","kiwi":"quả kiwi","knife":"con dao","ladybird":"bọ rùa","lake":"cái hồ","lamp":"cái đèn","leaf":"chiếc lá","leg":"cái chân","lemons":"những quả chanh","lettuce":"rau xà lách","lion":"sư tử","lobster":"tôm hùm","locks":"những ổ khóa","man":"người đàn ông","mango":"quả xoài","map":"bản đồ","melon":"quả dưa","milk":"sữa","monkey":"con khỉ","moon":"mặt trăng","mops":"những cây lau nhà","mother":"mẹ","motorbike":"xe máy","mountain":"ngọn núi","mouse":"con chuột","mouth":"cái miệng","nine":"số chín","nineteen":"số mười chín","noodles":"mì","nose":"cái mũi","notebook":"quyển vở","nuts":"các loại hạt","octopus":"con bạch tuộc","one":"số một","onion":"củ hành","orange":"màu cam; quả cam","owl":"con cú","paint":"sơn, màu vẽ","painting":"vẽ tranh","pan":"cái chảo","pancake":"bánh kếp","panda":"gấu trúc","paper":"giấy","parrot":"con vẹt","peach":"quả đào","pear":"quả lê","pen":"cái bút","pencil":"bút chì","penguin":"chim cánh cụt","pepper":"ớt chuông","phone":"điện thoại","piano":"đàn pi-a-nô","pig":"con lợn","pilot":"phi công","pineapple":"quả dứa","pink":"màu hồng","pizza":"bánh pizza","plane":"máy bay","plate":"cái đĩa","police car":"xe cảnh sát","police officer":"cảnh sát","popcorn":"bắp rang bơ","potato":"củ khoai tây","pots":"những cái nồi","purple":"màu tím","puzzle":"trò xếp hình","queen":"nữ hoàng","rabbit":"con thỏ","rain":"mưa","rainbow":"cầu vồng","reading":"đọc sách","red":"màu đỏ","rice":"cơm, gạo","robot":"người máy","rocket":"tên lửa","ruler":"cây thước","run":"chạy","sad":"buồn","salad":"món sa-lát","sandwich":"bánh mì kẹp","scared":"sợ hãi","scarf":"khăn quàng","school":"trường học","scissors":"cái kéo","scooter":"xe trượt scooter","seven":"số bảy","seventeen":"số mười bảy","shark":"cá mập","sheep":"con cừu","shell":"vỏ sò","ship":"con tàu","shirt":"cái áo sơ mi","shoes":"đôi giày","shop":"cửa hàng","shorts":"quần short","shower":"vòi hoa sen","shrimp":"con tôm","sick":"bị ốm","singer":"ca sĩ","singing":"ca hát","six":"số sáu","sixteen":"số mười sáu","skateboard":"ván trượt","skating":"trượt băng","skiing":"trượt tuyết","snail":"con ốc sên","snake":"con rắn","snow":"tuyết","socks":"đôi tất","sofa":"ghế sô-pha","soup":"món súp","spaghetti":"mì Ý","spider":"con nhện","spoon":"cái thìa","square":"hình vuông","star":"ngôi sao","strawberry":"quả dâu tây","student":"học sinh","sun":"mặt trời","sunglasses":"kính râm","supermarket":"siêu thị","surprised":"ngạc nhiên","swan":"thiên nga","swimming":"bơi lội","taxi":"xe taxi","tea":"trà","teacher":"giáo viên","teddy bear":"gấu bông","teeth":"những chiếc răng","television":"ti vi","ten":"số mười","tennis":"quần vợt","thirteen":"số mười ba","three":"số ba","tiger":"con hổ","tired":"mệt","toilet":"bồn cầu","tomato":"quả cà chua","tongue":"cái lưỡi","toothbrush":"bàn chải đánh răng","top":"con quay","tractor":"máy kéo","train":"tàu hỏa","tram":"xe điện","tree":"cái cây","triangle":"hình tam giác","trousers":"cái quần dài","truck":"xe tải","trumpet":"kèn trum-pét","turtle":"con rùa","twelve":"số mười hai","twenty":"số hai mươi","two":"số hai","umbrella":"cái ô","van":"xe van","violin":"đàn vi-ô-lông","volleyball":"bóng chuyền","wash":"rửa","watch":"đồng hồ đeo tay","water":"nước","watermelon":"quả dưa hấu","whale":"cá voi","white":"màu trắng","wind":"gió","window":"cửa sổ","wolf":"con sói","woman":"người phụ nữ","yellow":"màu vàng","zebra":"ngựa vằn"};
+/* a card that flips when tapped: the picture and word on the front, the Vietnamese meaning on the back */
+function flipCard(w, L, frontId, id) {
+  return `<div class="flip"${id ? ` id="${id}"` : ''} data-act="flip" role="button" tabindex="0" aria-label="Chạm để lật thẻ xem nghĩa tiếng Việt">
+    <div class="inner">
+      <div class="side front card big"${frontId ? ` id="${frontId}"` : ''}><div class="pic xl">${w.p}</div><div class="word">${hl(w.w, L)}</div></div>
+      <div class="side back card big"><div class="pic" style="font-size:min(14vw,64px)">${w.p}</div><div class="mean">${esc(VI[w.w] || '')}</div><div class="sub">${esc(w.w)}</div></div>
+    </div></div>`;
+}
+
 /* ---------- saved progress (this device, plus the account when available) ---------- */
 const KEY = 'dinohero.v1';
 /* the microphone only works on a secure website of its own, not inside another page or a file on the computer */
@@ -417,6 +428,8 @@ function render() {
   if (view === 'welcome') view = 'home';
   if (view === 'stickers') return stickers();
   if (view === 'practice') return practiceMenu();
+  if (view === 'decks') return decksMenu();
+  if (view === 'deck') return M && M.type === 'deck' ? deckScreen() : decksMenu();
   if (view === 'mission') return M && M.type === 'sp' ? renderSP() : renderMission();
   home();
 }
@@ -444,6 +457,7 @@ function home() {
   app.innerHTML = topbar(`<button class="mini" data-act="stickers" aria-label="Sticker khủng long">🦖</button><button class="mini" id="gate" aria-label="Cài đặt cho phụ huynh, nhấn giữ">⚙️</button>`) + `
     <section class="hello"><div><h1>Chào ${esc(kid())}!</h1><p>Chọn bài hôm nay</p></div>
     <div class="row"><button class="review alt" data-act="practice">🎯 Luyện tập</button>
+    <button class="review alt" data-act="decks">🃏 Thẻ từ vựng</button>
     <button class="review" data-act="review" ${due ? '' : 'disabled'}>⚡ Ôn tập tăng sức mạnh${due ? ' (' + Math.min(due, 8) + ')' : ' · đã ôn hết rồi'}</button></div></section>
     <section class="daily" aria-label="5 từ mỗi ngày">
       <div class="dpics" aria-hidden="true">${fw.words.map(w => `<span class="pic">${firstPic(IDX[w])}</span>`).join('')}</div>
@@ -455,6 +469,41 @@ function home() {
     <h2 class="sec">Bộ từ vựng thêm</h2>
     <section class="map" aria-label="Bộ từ vựng thêm">${UNITS.filter(u => u.extra).map(card).join('')}</section>`;
   bindGate();
+}
+function decksMenu() {
+  view = 'decks'; M = null;
+  const tints = ['#ef6f88', '#7a55e8', '#f0a63a', '#45a0ca', '#3ba3b4', '#58c46e'];
+  const learned = Object.keys(S.words).filter(w => IDX[w] && VI[w]);
+  const card = (u, i) => `
+      <button class="unit" data-act="deck" data-n="${u.n}" style="--tint:${tints[i % tints.length]}" aria-label="${esc(u.title)}">
+        <span class="letters">${u.extra ? u.icon : u.L + u.L.toLowerCase()}</span>
+        <span class="pics"><span class="pic">${u.words.slice(0, 3).map(w => firstPic(w.p)).join('')}</span></span>
+        <span class="uname">${esc(u.title)}${u.extra ? '<br><small>' + esc(u.vi) + '</small>' : ''}</span>
+      </button>`;
+  app.innerHTML = topbar() + `<section class="hello"><div><h1>Thẻ từ vựng</h1><p>Chạm vào thẻ để lật xem nghĩa tiếng Việt</p></div><button class="btn" data-act="home">⬅ Quay lại</button></section>
+    ${learned.length >= 3 ? `<section class="map"><button class="unit" data-act="deck" data-n="learned" style="--tint:#f0a63a"><span class="letters">⭐</span><span class="pics"><span class="pic">${learned.slice(0, 3).map(w => firstPic(IDX[w])).join('')}</span></span><span class="uname">Từ con đã học<br><small>${learned.length} từ</small></span></button></section>` : ''}
+    <h2 class="sec">Sách Tiếng Anh 1</h2>
+    <section class="map">${UNITS.filter(u => !u.extra).map(card).join('')}</section>
+    <h2 class="sec">Bộ từ vựng thêm</h2>
+    <section class="map">${UNITS.filter(u => u.extra).map(card).join('')}</section>`;
+}
+function startDeck(n) {
+  let words, title;
+  if (n === 'learned') { words = Object.keys(S.words).filter(w => IDX[w] && VI[w]).map(w => ({ w, p: IDX[w] })); title = 'Từ con đã học'; }
+  else { const u = UNITS.find(x => String(x.n) === String(n)); if (!u) return; words = u.words; title = u.title; }
+  M = { type: 'deck', title, words: shuffle(words), i: 0 };
+  deckScreen();
+}
+function deckScreen() {
+  view = 'deck';
+  const tok = ++TOK, w = M.words[M.i];
+  app.innerHTML = `<header class="mhead"><button class="x" data-act="decks" aria-label="Quay lại">✕</button>
+    <div class="mtitle"><h2>Thẻ từ vựng</h2><p>${esc(M.title)}</p></div><b>${M.i + 1} / ${M.words.length}</b></header>
+    <main class="stage">${flipCard(w, null, null, 'dflip')}
+      <p class="hint">Chạm vào thẻ để lật xem nghĩa tiếng Việt</p>
+      <div class="row"><button class="btn round" data-act="dprev" aria-label="Thẻ trước">◀</button><button class="btn round" data-act="dhear" aria-label="Nghe">🔊</button><button class="btn round" data-act="dnext" aria-label="Thẻ sau">▶</button></div>
+      <div class="row"><button class="btn" data-act="dshuffle">🔀 Trộn thẻ</button></div></main>`;
+  speakSoon(w.w, tok);
 }
 function stickers() {
   view = 'stickers';
@@ -516,7 +565,7 @@ const STEPS = {
   listen() {
     const w = M.u.words[M.ord.listen[M.i]], tok = ++TOK;
     dropRec(); M.rec = { tries: 0, state: 'idle', heard: '', url: null }; COACH.qMiss = 0; armIdle(22000);
-    $('#stage').innerHTML = `<div class="card big" id="lcard"><div class="pic xl">${w.p}</div><div class="word">${hl(w.w, M.u.L)}</div></div>
+    $('#stage').innerHTML = `${flipCard(w, M.u.L, 'lcard')}<p class="hint">Chạm vào thẻ để xem nghĩa tiếng Việt</p>
       <div id="lbody" class="stage" style="padding:0"></div>`;
     paintListen();
     speakSoon(w.w, tok, 'listen');
@@ -1286,6 +1335,19 @@ const ACT = {
   hero(t) { t.classList.remove('flex'); void t.offsetWidth; t.classList.add('flex'); say(`Hi ${ken()}! Let's learn English!`); },
   home() { dropRec(); view = 'home'; M = null; render(); },
   practice() { dropRec(); M = null; view = 'practice'; render(); },
+  decks() { dropRec(); M = null; view = 'decks'; render(); },
+  deck(t) { startDeck(t.dataset.n); },
+  flip(t) {
+    if (t._busy) return;
+    if (matchMedia('(prefers-reduced-motion: reduce)').matches) { t.classList.toggle('on'); return; }
+    t._busy = true; t.classList.add('turning');
+    setTimeout(() => t.classList.toggle('on'), 180);                       // swap sides while the card is edge-on
+    setTimeout(() => { t.classList.remove('turning'); t._busy = false; }, 370);
+  },
+  dnext() { M.i = (M.i + 1) % M.words.length; deckScreen(); },
+  dprev() { M.i = (M.i - 1 + M.words.length) % M.words.length; deckScreen(); },
+  dhear() { say(M.words[M.i].w); },
+  dshuffle() { M.words = shuffle(M.words); M.i = 0; deckScreen(); },
   spstart(t) { startSP(t.dataset.key); },
   spagain() { startSP(M.key); },
   sphear() { say(M.qs[M.qi].say); },
