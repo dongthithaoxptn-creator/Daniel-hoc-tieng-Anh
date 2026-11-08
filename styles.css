@@ -23,7 +23,7 @@ body{
 #app{
   min-height:100%; max-width:980px; margin:0 auto;
   padding-left:max(16px, env(safe-area-inset-left,0px)); padding-right:max(16px, env(safe-area-inset-right,0px));
-  padding-block:12px 40px; display:flex; flex-direction:column; gap:14px;
+  padding-block:12px 120px; display:flex; flex-direction:column; gap:14px;
 }
 button{font:inherit; color:inherit; border:0; cursor:pointer; background:none}
 button:focus-visible,input:focus-visible{outline:4px solid var(--sun-d); outline-offset:2px}
@@ -90,11 +90,6 @@ h1,h2,p{margin:0}
 .choice:active{transform:translateY(3px)}
 .choice.right{background:#c9f5d9; box-shadow:0 7px 0 #7fd7a1}
 .choice.wrong{background:#ffe1d8; box-shadow:0 7px 0 #f1b9a8}
-.chant{display:grid; grid-template-columns:repeat(auto-fit,minmax(130px,1fr)); gap:12px; width:100%}
-.cw{background:var(--card); border-radius:26px; padding:12px; text-align:center; box-shadow:0 6px 0 var(--shade); transition:transform .15s, background .15s}
-.cw .pic{font-size:3.4rem}
-.cw .word{font-size:1.5rem}
-.cw.on{background:var(--sun); transform:scale(1.07)}
 .trace{position:relative; width:min(86vw,380px); aspect-ratio:1; background:var(--card); border-radius:34px; box-shadow:0 8px 0 var(--shade); overflow:hidden}
 .trace canvas{position:absolute; inset:0; width:100%; height:100%}
 .trace canvas.ink{touch-action:none; cursor:crosshair}
@@ -114,7 +109,9 @@ h1,h2,p{margin:0}
 .sheet{display:grid; grid-template-columns:repeat(auto-fill,minmax(120px,1fr)); gap:12px}
 .slot{background:var(--card); border-radius:24px; padding:12px 6px; text-align:center; box-shadow:0 5px 0 var(--shade)}
 .slot .pic{font-size:3.2rem}
-.slot.locked .pic{filter:grayscale(1) brightness(.75) opacity(.5)}
+.slot.locked .pic{filter:brightness(0) opacity(.16)}
+.slot .dn{display:block; font-size:.78rem}
+.got svg, .egg svg{width:1em; height:1em}
 .slot b{display:block; font-family:var(--f-word); font-size:1.2rem}
 .slot small{color:var(--muted)}
 
@@ -177,7 +174,7 @@ h1,h2,p{margin:0}
 .hero-btn.noface .face, .hero-btn.noface .lvbadge{display:none}
 .hero-btn.noface .greeny{display:block}
 .lvbadge{position:absolute; right:-6px; bottom:2px; min-width:28px; height:28px; padding:0 6px; border-radius:14px; background:var(--sun); color:var(--ink); font-weight:700; font-size:.9rem; display:grid; place-items:center; border:3px solid #fff}
-#coach{position:fixed; left:50%; top:calc(env(safe-area-inset-top,0px) + 96px); transform:translateX(-50%) translateY(-14px); z-index:25; width:max-content; max-width:min(92vw,560px); background:#fff; border:4px solid var(--sun); border-radius:26px; padding:10px 20px 10px 14px; display:flex; gap:10px; align-items:center; box-shadow:0 8px 0 var(--shade); font-weight:700; font-size:clamp(1.1rem,3.8vw,1.55rem); line-height:1.25; pointer-events:none; opacity:0; transition:opacity .25s, transform .25s}
+#coach{position:fixed; left:50%; bottom:calc(env(safe-area-inset-bottom,0px) + 14px); transform:translateX(-50%) translateY(14px); z-index:25; width:max-content; max-width:min(92vw,560px); background:#fff; border:4px solid var(--sun); border-radius:26px; padding:10px 20px 10px 14px; display:flex; gap:10px; align-items:center; box-shadow:0 8px 0 var(--shade); font-weight:700; font-size:clamp(1.1rem,3.8vw,1.55rem); line-height:1.25; pointer-events:none; opacity:0; transition:opacity .25s, transform .25s}
 #coach.show{opacity:1; transform:translateX(-50%) translateY(0)}
 #coach.warn{border-color:#ff9f43}
 #coach .cemo{font-size:1.8rem}

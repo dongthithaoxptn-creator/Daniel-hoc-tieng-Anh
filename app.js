@@ -96,7 +96,7 @@ const firstPic = p => {
 const KEY = 'dinohero.v1';
 /* the microphone only works on a secure website of its own, not inside another page or a file on the computer */
 const MIC_OK = (() => { try { return location.protocol === 'https:' && window.top === window.self; } catch (e) { return false; } })();
-const fresh = () => ({ v: 3, name: '', stars: 0, done: {}, words: {}, rate: 0.85, savedAt: 0, check: MIC_OK ? 'auto' : 'thumb', write: 'tiles', viSpeak: false, fw: null, voice: '', nick: '', coach: true, praise: [], nudge: [] });
+const fresh = () => ({ v: 3, name: '', stars: 0, done: {}, words: {}, rate: 0.85, savedAt: 0, check: MIC_OK ? 'auto' : 'thumb', write: 'tiles', viSpeak: false, fw: null, voice: '', nick: '', coach: true, praise: [], nudge: [], nameEn: '', nickVi: '' });
 /* older saves had the microphone check on by default; the microphone is parked for now */
 const migrate = o => {
   if (!o.v || o.v < 2) { o.check = 'thumb'; o.v = 2; }
@@ -153,11 +153,11 @@ function pickVoice() {
   if (S.voice) { const chosen = en.find(v => voiceKey(v) === S.voice); if (chosen) return chosen; }
   const us = en.filter(v => /^en[-_]us$/i.test(v.lang));
   const pool = us.length ? us : en;
-  const names = ['samantha', 'ava', 'allison', 'nicky', 'karen', 'serena', 'google us english', 'zira', 'aria', 'jenny'];
+  const names = ['google us english', 'samantha', 'ava', 'allison', 'nicky', 'karen', 'serena', 'zira', 'aria', 'jenny'];
   const rank = v => {
     const n = v.name.toLowerCase(); let r = 0;
     if (/premium|enhanced/.test(n)) r -= 20;
-    const i = names.findIndex(p => n.includes(p)); if (i >= 0) r -= 10 - i;
+    const i = names.findIndex(p => n.includes(p)); if (i >= 0) r -= 12 - i;
     return r;
   };
   return pool.slice().sort((a, b) => rank(a) - rank(b))[0] || null;
@@ -186,20 +186,33 @@ function ttsSay(text, id) {
 function say(text) {
   const id = ++sayId;
   stopAudio();
-  const A = window.WORD_AUDIO, file = A && A[slug(text)];
-  if (!file) return ttsSay(text, id);
+  /* recorded voice first: the generated voice pack (voice/), then the real-voice word clips (audio/, private copies only), then the computer voice */
+  const key = slug(text), A = window.WORD_AUDIO;
+  const pid = window.VOICE_INDEX && window.VOICE_INDEX[key], pack = pid !== undefined && window.VOICE_PACKS && window.VOICE_PACKS[pid];
+  if (pid !== undefined && !pack) loadPack(pid);   // not here yet: the computer voice speaks this time, the recording the next
+  const src = pack && pack[key] ? pack[key] : A && A[key] ? 'audio/' + A[key] : null;
+  if (!src) return ttsSay(text, id);
   return new Promise(res => {
     const fallback = () => { if (id === sayId) ttsSay(text, id).then(res); else res(); };
     try {
       try { speechSynthesis.cancel(); } catch (e) {}
-      const a = new Audio('audio/' + file); curAudio = a;
+      const a = new Audio(src); curAudio = a;
       a.onended = () => res(); a.onerror = fallback;
       const p = a.play(); if (p && p.catch) p.catch(fallback);
       setTimeout(res, 6000);
     } catch (e) { fallback(); }
   });
 }
-function loadAudioIndex() { try { const sc = document.createElement('script'); sc.src = 'audio/index.js'; sc.onerror = () => {}; document.head.appendChild(sc); } catch (e) {} }
+/* the voice pack: voice/index.js says which pack holds each recording, and the packs (about 120 recordings each) load one after another in the background */
+const packLoading = {};
+function loadScript(src) { return new Promise(res => { try { const sc = document.createElement('script'); sc.src = src; sc.onload = () => res(true); sc.onerror = () => res(false); document.head.appendChild(sc); } catch (e) { res(false); } }); }
+function loadPack(pid) { if (!packLoading[pid]) packLoading[pid] = loadScript('voice/pack-' + pid + '.js'); return packLoading[pid]; }
+async function loadAudioIndex() {
+  loadScript('audio/index.js');
+  if (!(await loadScript('voice/index.js')) || !window.VOICE_INDEX) return;
+  const ids = [...new Set(Object.values(window.VOICE_INDEX))].sort((a, b) => a - b);
+  for (const id of ids) await loadPack(id);
+}
 /* Vietnamese guidance is spoken only when the device has a real Vietnamese voice; it never falls back to an English voice */
 const viVoice = () => voices.find(v => /^vi([-_]|$)/i.test(v.lang || '')) || null;
 function sayVi(text) {
@@ -215,7 +228,7 @@ function sayVi(text) {
   });
 }
 const seenVi = new Set();
-const STEPVI = { listen: 'Nghe và nhắc lại nhé!', point: 'Chỉ vào hình và nói nhé!', chant: 'Nghe và đọc theo nhịp nhé!', letter: 'Nhìn và tô chữ nhé!', write: 'Nhìn và viết nhé!', tick: 'Nghe và chọn hình đúng nhé!', talk: 'Nói cho bố mẹ nghe nhé!', review: 'Ôn lại các từ cũ nhé!' };
+const STEPVI = { listen: 'Nghe và nhắc lại nhé!', point: 'Chỉ vào hình và nói nhé!', copy: 'Tô cả từ, rồi che lại và viết nhé!', letter: 'Nhìn và tô chữ nhé!', write: 'Nhìn và viết nhé!', tick: 'Nghe và chọn hình đúng nhé!', talk: 'Nói cho bố mẹ nghe nhé!', review: 'Ôn lại các từ cũ nhé!' };
 async function introVi(step) { if (!S.viSpeak || seenVi.has(step) || !viVoice()) return; seenVi.add(step); await sayVi(STEPVI[step]); }
 let ac = null;
 function tone(notes) {
@@ -276,6 +289,98 @@ function heroSVG(lv) {
   </g></svg>`;
 }
 
+/* ---------- dinosaur stickers: eight kinds, eight colour schemes and eight accessories, so every unit gets its own ---------- */
+const eyeAt = (x, y) => `<circle cx="${x}" cy="${y}" r="5.5" fill="#fff"/><circle cx="${x + 1.2}" cy="${y + .6}" r="2.8" fill="#2b2b3a"/><circle cx="${x + 2}" cy="${y - .6}" r=".9" fill="#fff"/>`;
+const DINOS = [
+  { name: 'Khủng long bạo chúa', head: [92, 36], eye: [96, 34], draw: p => `
+    <path d="M34 60 Q8 56 4 78 Q20 70 38 74Z" fill="${p.a}"/>
+    <rect x="46" y="68" width="15" height="22" rx="7" fill="${p.c}"/><rect x="66" y="68" width="15" height="22" rx="7" fill="${p.c}"/>
+    <path d="M40 40 L45 28 L51 40Z M54 38 L60 25 L66 38Z M68 38 L74 26 L79 40Z" fill="${p.c}"/>
+    <ellipse cx="62" cy="58" rx="31" ry="22" fill="${p.a}"/><ellipse cx="66" cy="67" rx="21" ry="12" fill="${p.b}"/>
+    <ellipse cx="86" cy="62" rx="5" ry="3" fill="${p.a}" stroke="${p.c}" stroke-width="1.5"/>
+    <ellipse cx="92" cy="38" rx="19" ry="15" fill="${p.a}"/><ellipse cx="104" cy="44" rx="13" ry="9" fill="${p.a}"/>
+    <path d="M96 48 Q106 54 116 46" stroke="#2b2b3a" stroke-width="2.4" fill="none" stroke-linecap="round"/>
+    <path d="M102 48 L104 53 L107 48Z M108 48 L110 52 L112 47Z" fill="#fff"/>${eyeAt(96, 34)}` },
+  { name: 'Khủng long cổ dài', head: [100, 22], eye: [102, 22], draw: p => `
+    <path d="M28 70 Q8 72 6 84 Q22 82 34 78Z" fill="${p.a}"/>
+    <rect x="34" y="74" width="10" height="16" rx="5" fill="${p.c}"/><rect x="46" y="76" width="10" height="14" rx="5" fill="${p.c}"/><rect x="66" y="76" width="10" height="14" rx="5" fill="${p.c}"/><rect x="78" y="74" width="10" height="16" rx="5" fill="${p.c}"/>
+    <path d="M70 62 Q86 56 88 28 L100 30 Q100 62 84 76Z" fill="${p.a}"/>
+    <ellipse cx="58" cy="66" rx="30" ry="17" fill="${p.a}"/><ellipse cx="60" cy="72" rx="20" ry="9" fill="${p.b}"/>
+    <circle cx="46" cy="58" r="3.5" fill="${p.c}"/><circle cx="58" cy="54" r="3.5" fill="${p.c}"/><circle cx="70" cy="57" r="3.5" fill="${p.c}"/>
+    <ellipse cx="100" cy="24" rx="12" ry="8.5" fill="${p.a}"/>
+    <path d="M97 29 Q104 32 110 28" stroke="#2b2b3a" stroke-width="2.2" fill="none" stroke-linecap="round"/>${eyeAt(102, 22)}` },
+  { name: 'Khủng long ba sừng', head: [92, 52], eye: [97, 56], draw: p => `
+    <path d="M26 66 Q8 66 6 80 Q22 76 32 74Z" fill="${p.a}"/>
+    <rect x="38" y="72" width="13" height="18" rx="6" fill="${p.c}"/><rect x="54" y="74" width="13" height="16" rx="6" fill="${p.c}"/><rect x="70" y="74" width="13" height="16" rx="6" fill="${p.c}"/>
+    <ellipse cx="56" cy="64" rx="32" ry="20" fill="${p.a}"/><ellipse cx="58" cy="72" rx="20" ry="10" fill="${p.b}"/>
+    <circle cx="84" cy="48" r="22" fill="${p.c}"/>
+    <circle cx="66" cy="46" r="3" fill="${p.b}"/><circle cx="70" cy="34" r="3" fill="${p.b}"/><circle cx="82" cy="27" r="3" fill="${p.b}"/><circle cx="96" cy="31" r="3" fill="${p.b}"/>
+    <ellipse cx="92" cy="60" rx="17" ry="13" fill="${p.a}"/>
+    <path d="M86 50 L82 32 L94 48Z M98 50 L102 32 L106 50Z" fill="${p.b}" stroke="${p.c}" stroke-width="1.2"/>
+    <path d="M104 62 L116 66 L106 70Z" fill="${p.b}" stroke="${p.c}" stroke-width="1.2"/>
+    <path d="M92 68 Q100 72 106 68" stroke="#2b2b3a" stroke-width="2.2" fill="none" stroke-linecap="round"/>${eyeAt(97, 56)}` },
+  { name: 'Khủng long lưng gai', head: [96, 66], eye: [99, 67], draw: p => `
+    <path d="M26 66 Q8 62 4 74 L12 72 L10 82 Q24 76 32 74Z" fill="${p.a}"/>
+    <path d="M6 68 L2 62 L10 66Z M12 76 L6 82 L14 80Z" fill="${p.c}"/>
+    <rect x="36" y="72" width="12" height="18" rx="6" fill="${p.c}"/><rect x="50" y="74" width="12" height="16" rx="6" fill="${p.c}"/><rect x="68" y="74" width="12" height="16" rx="6" fill="${p.c}"/>
+    <path d="M34 50 L42 30 L50 48Z M46 46 L56 24 L64 46Z M60 46 L70 26 L77 46Z M72 50 L80 34 L86 52Z" fill="${p.c}"/>
+    <ellipse cx="58" cy="64" rx="34" ry="19" fill="${p.a}"/><ellipse cx="62" cy="72" rx="22" ry="9" fill="${p.b}"/>
+    <ellipse cx="96" cy="70" rx="12" ry="8" fill="${p.a}"/>
+    <path d="M92 75 Q99 78 106 73" stroke="#2b2b3a" stroke-width="2.2" fill="none" stroke-linecap="round"/>${eyeAt(99, 67)}` },
+  { name: 'Thằn lằn bay', head: [82, 42], eye: [84, 42], draw: p => `
+    <path d="M52 52 Q36 12 6 16 Q26 30 36 60Z" fill="${p.c}"/><path d="M68 50 Q76 10 112 6 Q88 28 80 58Z" fill="${p.c}"/>
+    <path d="M58 62 Q44 80 52 92 Q60 82 66 64Z" fill="${p.a}"/>
+    <ellipse cx="62" cy="54" rx="17" ry="11" fill="${p.a}"/><ellipse cx="62" cy="58" rx="11" ry="6" fill="${p.b}"/>
+    <ellipse cx="82" cy="44" rx="10" ry="8" fill="${p.a}"/><path d="M76 38 L64 26 L82 36Z" fill="${p.c}"/>
+    <path d="M90 42 L112 47 L90 52Z" fill="${p.b}" stroke="${p.c}" stroke-width="1.2"/>
+    <path d="M92 49 Q100 50 108 48" stroke="#2b2b3a" stroke-width="1.6" fill="none"/>${eyeAt(84, 42)}` },
+  { name: 'Khủng long giáp', head: [96, 68], eye: [100, 68], draw: p => `
+    <path d="M22 70 Q10 70 8 78" stroke="${p.a}" stroke-width="9" fill="none" stroke-linecap="round"/><circle cx="8" cy="78" r="8" fill="${p.c}"/>
+    <rect x="36" y="74" width="13" height="16" rx="6" fill="${p.c}"/><rect x="52" y="76" width="13" height="14" rx="6" fill="${p.c}"/><rect x="70" y="76" width="13" height="14" rx="6" fill="${p.c}"/>
+    <ellipse cx="56" cy="68" rx="37" ry="17" fill="${p.a}"/><ellipse cx="58" cy="76" rx="24" ry="8" fill="${p.b}"/>
+    <path d="M22 66 Q56 30 90 66Z" fill="${p.c}"/>
+    <circle cx="34" cy="56" r="4" fill="${p.b}"/><circle cx="46" cy="48" r="4" fill="${p.b}"/><circle cx="60" cy="46" r="4" fill="${p.b}"/><circle cx="74" cy="50" r="4" fill="${p.b}"/><circle cx="84" cy="58" r="4" fill="${p.b}"/>
+    <ellipse cx="96" cy="72" rx="12" ry="9" fill="${p.a}"/>
+    <path d="M92 77 Q100 80 107 75" stroke="#2b2b3a" stroke-width="2.2" fill="none" stroke-linecap="round"/>${eyeAt(100, 68)}` },
+  { name: 'Khủng long vây lưng', head: [90, 48], eye: [92, 46], draw: p => `
+    <path d="M30 62 Q8 60 4 76 Q22 70 36 72Z" fill="${p.a}"/>
+    <rect x="46" y="68" width="14" height="22" rx="7" fill="${p.c}"/><rect x="64" y="68" width="14" height="22" rx="7" fill="${p.c}"/>
+    <path d="M38 52 Q44 16 62 30 Q76 14 86 52Z" fill="${p.c}"/>
+    <path d="M46 48 L50 30 M58 44 L62 32 M70 44 L74 30" stroke="${p.b}" stroke-width="2" fill="none"/>
+    <ellipse cx="62" cy="60" rx="30" ry="20" fill="${p.a}"/><ellipse cx="66" cy="68" rx="20" ry="11" fill="${p.b}"/>
+    <ellipse cx="90" cy="50" rx="14" ry="11" fill="${p.a}"/><ellipse cx="106" cy="53" rx="12" ry="6" fill="${p.a}"/>
+    <path d="M96 56 Q106 60 116 54" stroke="#2b2b3a" stroke-width="2" fill="none" stroke-linecap="round"/>${eyeAt(92, 46)}` },
+  { name: 'Khủng long con nở trứng', head: [60, 38], eye: [60, 38], wide: true, draw: p => `
+    <ellipse cx="60" cy="64" rx="27" ry="29" fill="#fff6dc" stroke="#e3cf9f" stroke-width="2"/>
+    <circle cx="48" cy="72" r="4" fill="#f1e3bd"/><circle cx="72" cy="78" r="3.4" fill="#f1e3bd"/><circle cx="64" cy="66" r="3" fill="#f1e3bd"/>
+    <circle cx="60" cy="40" r="19" fill="${p.a}"/>
+    <path d="M44 34 L48 22 L54 32Z M56 30 L60 16 L66 30Z M68 32 L74 22 L77 34Z" fill="${p.c}"/>
+    <circle cx="40" cy="58" r="5" fill="${p.a}"/><circle cx="80" cy="58" r="5" fill="${p.a}"/>
+    <path d="M32 60 L40 52 L47 62 L54 52 L61 62 L68 52 L75 62 L82 52 L88 60 L88 84 Q60 98 32 84Z" fill="#fff6dc" stroke="#e3cf9f" stroke-width="2" stroke-linejoin="round"/>
+    <path d="M50 48 Q60 56 70 48" stroke="#2b2b3a" stroke-width="2.4" fill="none" stroke-linecap="round"/>${eyeAt(52, 38)}${eyeAt(68, 38)}` }
+];
+const PALS = [
+  { a: '#5fd35f', b: '#d8f5c0', c: '#2f9e5f' }, { a: '#4aa8ff', b: '#d6ecff', c: '#2f6bff' }, { a: '#ff9a3c', b: '#ffe2bf', c: '#e5671c' }, { a: '#b57cff', b: '#ecdcff', c: '#7a55e8' },
+  { a: '#ff7aa8', b: '#ffdce9', c: '#e0457f' }, { a: '#ffd23f', b: '#fff3bf', c: '#e0a400' }, { a: '#3fc7b5', b: '#d3f6f0', c: '#1f8f80' }, { a: '#ff6b5e', b: '#ffd9d4', c: '#c93a2e' }
+];
+const ACCS = [
+  (hx, hy) => `<path d="M${hx - 8} ${hy - 12} L${hx + 8} ${hy - 12} L${hx} ${hy - 30}Z" fill="#ff5da2" stroke="#fff" stroke-width="1.5"/><circle cx="${hx}" cy="${hy - 31}" r="3.2" fill="#ffe14d"/><path d="M${hx - 5} ${hy - 18} L${hx + 5} ${hy - 18}" stroke="#ffe14d" stroke-width="2"/>`,
+  (hx, hy, ex, ey, wide) => `<ellipse cx="${ex + 1}" cy="${ey}" rx="${wide ? 15 : 7.5}" ry="5.5" fill="#222"/><path d="M${ex - 7} ${ey - 1} L${ex - 15} ${ey - 4}" stroke="#222" stroke-width="2"/><path d="M${ex - 3} ${ey - 2} L${ex + 3} ${ey - 3}" stroke="#fff" stroke-width="1.4" opacity=".7"/>`,
+  (hx, hy) => `<path d="M${hx - 10} ${hy - 12} L${hx - 10} ${hy - 25} L${hx - 5} ${hy - 18} L${hx} ${hy - 27} L${hx + 5} ${hy - 18} L${hx + 10} ${hy - 25} L${hx + 10} ${hy - 12}Z" fill="#ffc83d" stroke="#e0a400" stroke-width="1.5"/><circle cx="${hx}" cy="${hy - 16}" r="2" fill="#e63946"/>`,
+  (hx, hy) => `<path d="M${hx - 9} ${hy + 12} L${hx} ${hy + 17} L${hx - 9} ${hy + 22}Z M${hx + 9} ${hy + 12} L${hx} ${hy + 17} L${hx + 9} ${hy + 22}Z" fill="#e63946"/><circle cx="${hx}" cy="${hy + 17}" r="3" fill="#b3202c"/>`,
+  (hx, hy) => [0, 1, 2, 3, 4].map(k => `<circle cx="${hx - 8 + 4.6 * Math.cos(k * 1.2566)}" cy="${hy - 14 + 4.6 * Math.sin(k * 1.2566)}" r="3.2" fill="#ff8fb1"/>`).join('') + `<circle cx="${hx - 8}" cy="${hy - 14}" r="2.6" fill="#ffd23f"/>`,
+  (hx, hy) => `<path d="M${hx - 13} ${hy + 2} Q${hx} ${hy - 26} ${hx + 13} ${hy + 2}" stroke="#333" stroke-width="3.2" fill="none"/><rect x="${hx - 17}" y="${hy - 2}" width="7" height="11" rx="3" fill="#ff5d5d"/><rect x="${hx + 10}" y="${hy - 2}" width="7" height="11" rx="3" fill="#ff5d5d"/>`,
+  (hx, hy) => `<path d="M${hx + 16} ${hy - 29} L${hx + 18.2} ${hy - 23} L${hx + 24} ${hy - 23} L${hx + 19.4} ${hy - 19.4} L${hx + 21} ${hy - 13} L${hx + 16} ${hy - 17} L${hx + 11} ${hy - 13} L${hx + 12.6} ${hy - 19.4} L${hx + 8} ${hy - 23} L${hx + 13.8} ${hy - 23}Z" fill="#ffd23f" stroke="#e0a400" stroke-width="1.2"/>`,
+  (hx, hy) => `<path d="M${hx - 11} ${hy + 11} Q${hx} ${hy + 19} ${hx + 11} ${hy + 11} L${hx + 11} ${hy + 17} Q${hx} ${hy + 25} ${hx - 11} ${hy + 17}Z" fill="#2f9bff"/><rect x="${hx - 8}" y="${hy + 16}" width="6" height="12" rx="2" fill="#2f9bff"/>`
+];
+/* the i-th unit's own sticker: kind, colour and accessory all differ from its neighbours */
+function dinoSVG(i) {
+  const d = DINOS[i % DINOS.length], p = PALS[Math.floor(i / DINOS.length) % PALS.length], a = ACCS[(i * 5 + 3) % ACCS.length];
+  return `<svg viewBox="0 -14 120 114" aria-hidden="true"><ellipse cx="60" cy="92" rx="38" ry="4" fill="rgba(0,0,0,.12)"/>${d.draw(p)}${a(d.head[0], d.head[1], d.eye[0], d.eye[1], d.wide)}</svg>`;
+}
+const dinoName = i => DINOS[i % DINOS.length].name;
+const dinoIdx = u => Math.max(0, UNITS.indexOf(u));
+
 /* ---------- learning state ---------- */
 const DAYS = [0, 1, 2, 4, 8, 16];
 function mark(w, ok) {
@@ -291,10 +396,12 @@ function knownList() {
   return ks;
 }
 const kid = () => S.name || 'friend';
+/* how his name is spoken by the English voice (a respelling fixes a name the voice gets wrong) */
+const ken = () => S.nameEn || S.name || 'friend';
 const STEP = {
   listen: ['Nghe và nhắc lại', 'Listen and repeat'],
   point: ['Chỉ và nói', 'Point and say'],
-  chant: ['Nghe và đọc theo nhịp', 'Listen and chant'],
+  copy: ['Viết cả từ', 'Write the word'],
   letter: ['Nhìn và tô chữ', 'Look and trace'],
   write: ['Nhìn và viết', 'Look and write'],
   tick: ['Nghe và chọn', 'Listen and tick'],
@@ -345,7 +452,7 @@ function home() {
         <span class="letters">${u.extra ? u.icon : u.L + u.L.toLowerCase()}</span>
         <span class="pics"><span class="pic">${u.words.slice(0, 3).map(w => firstPic(w.p)).join('')}</span></span>
         <span class="uname">${esc(u.title)}${u.extra ? '<br><small>' + esc(u.vi) + '</small>' : ''}</span>
-        ${S.done[u.n] ? `<span class="got" style="filter:hue-rotate(${u.k * 23}deg)">${u.k % 2 ? '🦖' : '🦕'}</span>` : ''}
+        ${S.done[u.n] ? `<span class="got">${dinoSVG(dinoIdx(u))}</span>` : ''}
       </button>`;
   app.innerHTML = topbar(`<button class="mini" data-act="stickers" aria-label="Sticker khủng long">🦖</button><button class="mini" id="gate" aria-label="Cài đặt cho phụ huynh, nhấn giữ">⚙️</button>`) + `
     <section class="hello"><div><h1>Chào ${esc(kid())}!</h1><p>Chọn bài hôm nay</p></div>
@@ -367,7 +474,7 @@ function stickers() {
   app.innerHTML = topbar() + `<section class="hello"><div><h1>Sticker khủng long</h1><p>Hoàn thành một bài để ấp nở khủng long</p></div><button class="btn" data-act="home">⬅ Quay lại</button></section>
     <section class="sheet">${UNITS.map(u => {
       const got = S.done[u.n];
-      return `<div class="slot ${got ? '' : 'locked'}"><span class="pic" style="${got ? 'filter:hue-rotate(' + u.k * 23 + 'deg)' : ''}">${u.k % 2 ? '🦖' : '🦕'}</span><b>${u.extra ? u.icon : u.L + u.L.toLowerCase()}</b><small>${u.extra ? esc(u.title) : 'Unit ' + u.n}</small></div>`;
+      return `<div class="slot ${got ? '' : 'locked'}"><span class="pic">${dinoSVG(dinoIdx(u))}</span><b>${u.extra ? u.icon : u.L + u.L.toLowerCase()}</b><small>${u.extra ? esc(u.title) : 'Unit ' + u.n}</small>${got ? `<small class="dn">${dinoName(dinoIdx(u))}</small>` : ''}</div>`;
     }).join('')}</section>`;
 }
 
@@ -385,12 +492,12 @@ function startUnit(n) { const u = UNITS.find(x => String(x.n) === String(n)); if
 function startUnitObj(u) {
   const nw = u.words.length, k = 'u' + u.n;
   const steps = u.daily ? ['listen', 'point', 'write', 'tick']
-    : u.L ? ['listen', 'point', 'chant', 'letter', 'write', 'tick', 'talk']
-    : ['listen', 'point', 'chant', 'write', 'tick'].concat(u.talkList.length ? ['talk'] : []);
+    : u.L ? ['listen', 'point', 'copy', 'letter', 'write', 'tick', 'talk']
+    : ['listen', 'point', 'copy', 'write', 'tick'].concat(u.talkList.length ? ['talk'] : []);
   /* Unit 1 is a little conversation (Hi ... Bye), so it keeps its order */
   const talk = u.n === 1 ? u.talkList : u.extra ? shuffle(u.talkList).slice(0, 3) : order(u.talkList.length, k + 't').map(i => u.talkList[i]);
   M = { type: 'unit', u, steps, si: 0, i: 0, gain0: S.stars, lv0: level(), talk,
-    ord: { listen: order(nw, k + 'l'), chant: order(nw, k + 'c'), write: order(nw, k + 'w') } };
+    ord: { listen: order(nw, k + 'l'), copy: order(nw, k + 'p'), write: order(nw, k + 'w') } };
   view = 'mission'; renderMission();
 }
 function startReview() {
@@ -466,13 +573,37 @@ const STEPS = {
   },
   point() { quizStart(shuffle(M.u.words).map(w => ({ say: w.w, target: w.w }))); },
   tick() { quizStart(shuffle(M.u.tick)); },
-  chant() {
-    const tok = ++TOK;
-    M.cwords = M.ord.chant.map(i => M.u.words[i]);
-    $('#stage').innerHTML = `<div class="chant">${M.cwords.map((w, i) => `<div class="cw" id="cw${i}"><div class="pic">${w.p}</div><div class="word">${hl(w.w, M.u.L)}</div></div>`).join('')}</div>
-      <div class="row"><button class="btn go" data-act="chant">▶ Đọc nào!</button><button class="btn" data-act="nextstep">Tiếp ➜</button></div>
-      <p class="hint">Vỗ tay theo nhịp nhé!</p>`;
-    setTimeout(async () => { if (tok !== TOK) return; await introVi('chant'); if (tok === TOK) ACT.chant(); }, 300);
+  /* write the whole word: first trace it in dots, then cover it and write it from memory */
+  copy() {
+    const u = M.u, tok = ++TOK;
+    const wi = M.ord.copy[Math.floor(M.i / 2)], stage = M.i % 2, w = u.words[wi];
+    M.cw = { w, wi, stage, miss: 0, fill: [], lock: false };
+    M.cwMissed = M.cwMissed || {};
+    COACH.qMiss = 0; armIdle(22000);
+    const hear = '<button class="btn round" data-act="cwhear" aria-label="Nghe lại">🔊</button>';
+    if (stage === 0) {
+      $('#stage').innerHTML = `<div class="card big" style="padding:8px 16px"><div class="pic" style="font-size:min(16vw,72px)">${w.p}</div></div>
+        <div class="trace wide"><canvas id="guide" aria-hidden="true"></canvas><canvas id="ink" class="ink" aria-label="Tô theo từ ${esc(w.w)} bằng ngón tay"></canvas></div>
+        <div class="row">${hear}<button class="btn" data-act="clearink">🧽 Xóa</button><button class="btn go" id="inkdone" data-act="cwtracedone" disabled>Xong ✓</button></div>
+        <p class="hint" id="inkhint">Dùng ngón tay tô theo nét chấm nhé!</p>`;
+      traceInit(w.w, true);
+    } else {
+      const letters = w.w.replace(/ /g, '').split('');
+      const extra = sample('abcdefghijklmnopqrstuvwxyz'.split('').filter(c => !w.w.includes(c)), 2);
+      M.cw.tiles = shuffle(letters.concat(extra)).map((ch, i) => ({ ch, i }));
+      M.cw.target = letters.join('');
+      const card = `<div class="card big"><div class="pic xl" style="font-size:min(26vw,120px)">${w.p}</div></div>`;
+      if (S.write === 'keys') {
+        $('#stage').innerHTML = `${card}<input id="cwtype" type="text" autocapitalize="off" autocorrect="off" spellcheck="false" autocomplete="off" aria-label="Gõ từ">
+          <div class="row">${hear}<button class="btn go" data-act="cwcheck">Kiểm tra ✓</button></div><p class="hint">Che từ lại rồi viết từ này nhé!</p>`;
+        setTimeout(() => { const i = $('#cwtype'); if (i && tok === TOK) i.focus(); }, 400);
+      } else {
+        $('#stage').innerHTML = `${card}<div class="slots" id="cwslots">${w.w.split('').map(c => c === ' ' ? '<div class="sp"></div>' : '<div class="sl"></div>').join('')}</div>
+          <div class="slots" id="cwtiles">${M.cw.tiles.map(l => `<button class="ltile" data-act="cwtile" data-i="${l.i}">${l.ch}</button>`).join('')}</div>
+          <div class="row">${hear}<button class="btn" data-act="cwclear">🧽 Xóa</button></div><p class="hint">Che từ lại rồi viết từ này nhé!</p>`;
+      }
+    }
+    speakSoon(w.w, tok, 'copy');
   },
   letter() {
     const ch = M.i === 0 ? M.u.L : M.u.L.toLowerCase(), tok = ++TOK;
@@ -484,11 +615,11 @@ const STEPS = {
     speakSoon(letterSpeech(ch, M.u.words), tok, 'letter');
   },
   talk() {
-    const t = M.talk[M.i], text = t[0].replace('{kid}', kid()), tok = ++TOK;
+    const t = M.talk[M.i], text = t[0].replace('{kid}', kid()), spoken = t[0].replace('{kid}', ken()), tok = ++TOK;
     $('#stage').innerHTML = `<div class="card big"><div class="pic xl" style="font-size:min(26vw,130px)">${t[1]}</div><div class="say">${esc(text)}</div></div>
       <div class="row"><button class="btn round" data-act="saytalk" aria-label="Hear it again">🔊</button><button class="btn go" data-act="talkdone">👍 Xong</button></div>
       <p class="hint">Con nói cho bố mẹ nghe, rồi bố mẹ bấm "Xong" nhé!</p>`;
-    speakSoon(text, tok, 'talk');
+    speakSoon(spoken, tok, 'talk');
   }
 };
 
@@ -705,7 +836,7 @@ function rewardDaily() {
   app.innerHTML = topbar() + `<main class="reward"><div class="egg pop" id="egg" aria-hidden="true">🌟</div><h2>Xong 5 từ hôm nay!</h2><p>⭐ +${gained}${lvUp ? ' · 💪 Lên cấp sức mạnh!' : ''}</p><p>Con đã học ${f.days} ngày. Mai gặp lại nhé!</p>
     <button class="btn go" data-act="home">Về bản đồ</button></main>`;
   cheer(lvUp ? 'level' : 'daily', true);
-  sfx(true); burst($('#egg')); say(`Great job, ${kid()}! See you tomorrow!`);
+  sfx(true); burst($('#egg')); say(`Great job, ${ken()}! See you tomorrow!`);
 }
 
 /* rewards */
@@ -722,9 +853,9 @@ function rewardUnit() {
   sleep(1700).then(() => {
     if (tok !== TOK || view !== 'reward') return;
     const e = $('#egg'); if (!e) return;
-    e.classList.remove('wob'); e.classList.add('pop'); e.textContent = u.k % 2 ? '🦖' : '🦕'; e.style.filter = `hue-rotate(${u.k * 23}deg)`;
-    $('#rt').textContent = `${DINO} đã nở! Xong ${u.extra ? u.title : 'Unit ' + n}!`;
-    sfx(true); burst(e); say(`Great job, ${kid()}!`);
+    e.classList.remove('wob'); e.classList.add('pop'); e.innerHTML = dinoSVG(dinoIdx(u));
+    $('#rt').textContent = `${dinoName(dinoIdx(u))} đã nở! Xong ${u.extra ? u.title : 'Unit ' + n}!`;
+    sfx(true); burst(e); say(`Great job, ${ken()}!`);
   });
 }
 function rewardReview() {
@@ -734,7 +865,7 @@ function rewardReview() {
   app.innerHTML = topbar() + `<main class="reward"><div class="egg pop" id="egg" aria-hidden="true">💪</div><h2>Tăng sức mạnh xong!</h2><p>⭐ +${gained}${lvUp ? ' · Lên cấp sức mạnh!' : ''}</p>
     <button class="btn go" data-act="home">Về bản đồ</button></main>`;
   cheer(lvUp ? 'level' : 'great', true);
-  sfx(true); burst($('#egg')); say(`Super strong, ${kid()}!`);
+  sfx(true); burst($('#egg')); say(`Super strong, ${ken()}!`);
 }
 
 /* grown-up panel */
@@ -752,11 +883,14 @@ function syncText() {
     : 'Tiến độ chỉ được lưu trên thiết bị này. Mở trang khi đã đăng nhập Claude để đồng bộ.';
 }
 function openPanel() {
-  const o = $('#overlay'), en = pickVoice(), vi = viVoice(), nclips = window.WORD_AUDIO ? Object.keys(window.WORD_AUDIO).length : 0;
+  const o = $('#overlay'), en = pickVoice(), vi = viVoice(), nclips = window.WORD_AUDIO ? Object.keys(window.WORD_AUDIO).length : 0, nvoice = window.VOICE_INDEX ? Object.keys(window.VOICE_INDEX).length : 0, npacks = window.VOICE_PACKS ? Object.keys(window.VOICE_PACKS).length : 0, ntotal = window.VOICE_INDEX ? new Set(Object.values(window.VOICE_INDEX)).size : 0;
   o.hidden = false;
   o.innerHTML = `<div class="panel" role="dialog" aria-label="Cài đặt cho phụ huynh"><h2>Dành cho phụ huynh</h2>
     <label for="pname">Tên của bé</label><input id="pname" type="text" maxlength="20" value="${esc(S.name)}">
     <label for="pnick">Biệt danh ở nhà (dùng khi khen và nhắc)</label><input id="pnick" type="text" maxlength="20" value="${esc(S.nick || '')}" placeholder="${esc(S.name || 'Biệt danh')}">
+    <label for="pnameen">Cách đọc tên khi nói tiếng Anh (nếu giọng đọc sai, ví dụ: Dan-yuhl)</label><input id="pnameen" type="text" maxlength="30" value="${esc(S.nameEn || '')}" placeholder="${esc(S.name || '')}">
+    <label for="pnickvi">Cách đọc biệt danh khi nói tiếng Việt (nếu giọng đọc sai, ví dụ: Đa-ni-eo)</label><input id="pnickvi" type="text" maxlength="30" value="${esc(S.nickVi || '')}" placeholder="${esc(S.nick || S.name || '')}">
+    <div class="row"><button class="btn" data-act="sayname">🔊 Nghe tên (tiếng Anh)</button><button class="btn" data-act="saynamevi">🔊 Nghe tên (tiếng Việt)</button></div>
     <label for="pcoach">Lời khen và nhắc nhở</label>
     <select id="pcoach"><option value="on" ${S.coach === false ? '' : 'selected'}>Bật</option><option value="off" ${S.coach === false ? 'selected' : ''}>Tắt</option></select>
     <label for="ppraise">Thêm lời khen của riêng bạn (mỗi dòng một câu, dùng {n} cho biệt danh)</label>
@@ -778,7 +912,7 @@ function openPanel() {
     <label for="prate">Tốc độ giọng đọc tiếng Anh</label><input id="prate" type="range" min="0.6" max="1.1" step="0.05" value="${S.rate}">
     <button class="btn" data-act="testvoice">🔊 Thử giọng</button>
     <p class="sync">Giọng máy đang dùng: ${en ? esc(en.name) + ' (' + esc(en.lang) + ')' : 'không tìm thấy, dùng giọng mặc định của thiết bị'}</p>
-    <p class="sync">${nclips ? 'Bản ghi âm giọng người thật: ' + nclips + ' từ. Các từ còn lại dùng giọng máy.' : 'Chưa có thư mục audio, nên mọi từ dùng giọng máy.'}</p>
+    <p class="sync">${nvoice ? 'Giọng đọc tự nhiên: ' + nvoice + ' từ và câu (đã tải ' + npacks + '/' + ntotal + ' gói). Phần còn lại dùng giọng máy.' : 'Chưa có gói giọng đọc tự nhiên (thư mục voice).'}${nclips ? ' Bản ghi âm giọng người thật: ' + nclips + ' từ (chỉ dùng nếu gói giọng không có).' : ''}</p>
     <p class="sync">${syncText()}</p>
     <button class="btn danger" id="reset" data-act="reset">Xóa toàn bộ tiến độ</button>
     <button class="btn go" data-act="closepanel">Lưu và đóng</button></div>`;
@@ -1007,7 +1141,7 @@ function spDone() {
     <h2>Đúng ngay lần đầu: ${M.right}/${n}!</h2><p>⭐ +${gained}${lvUp ? ' · 💪 Lên cấp sức mạnh!' : ''}</p>
     <div class="row"><button class="btn go" data-act="spagain">Chơi lại</button><button class="btn" data-act="practice">Luyện thêm</button></div></main>`;
   cheer(lvUp ? 'level' : M.right >= n - 1 ? 'great' : 'tryagain', true);
-  sfx(true); burst($('.egg')); say(M.right >= 4 ? `Super, ${kid()}!` : `Good try, ${kid()}!`);
+  sfx(true); burst($('.egg')); say(M.right >= 4 ? `Super, ${ken()}!` : `Good try, ${ken()}!`);
 }
 
 /* look, cover, write, check: the word is shown, then hidden, and he writes it from memory */
@@ -1051,6 +1185,21 @@ function letterChoices(word, idx) {
   return shuffle(set);
 }
 /*WR-END*/
+function cwOK(el) {
+  M.cw.lock = true; sfx(true); if (el) burst(el);
+  const first = !M.cwMissed[M.cw.wi];
+  coachRight(first); if (first) award(1);
+  setTimeout(() => { M.i++; if (M.i >= M.u.words.length * 2) nextStep(); else STEPS.copy(); }, 900);
+}
+function cwMiss(el) {
+  sfx(false); M.cwMissed[M.cw.wi] = true; M.cw.miss++; coachWrong();
+  if (el) { el.classList.remove('shake'); void el.offsetWidth; el.classList.add('shake'); }
+  setTimeout(() => {
+    if (M.cw.lock) return;
+    if (M.cw.miss >= 2) { M.i--; STEPS.copy(); }   // two misses: back to tracing the word, then try again
+    else { ACT.cwclear(); const i = $('#cwtype'); if (i) i.value = ''; }
+  }, 700);
+}
 function writeOK(el) {
   sfx(true); if (el) burst(el);
   coachRight(!M.wmissed);
@@ -1094,14 +1243,16 @@ function pickMsg(kind) {
   let t, tries = 0;
   do { t = pool[Math.floor(Math.random() * pool.length)]; tries++; } while (pool.length > 1 && t === COACH.last && tries < 8);
   COACH.last = t;
-  return t.replace(/\{n\}/g, nick());
+  return t;
 }
 /* show a message in a speech bubble; ordinary ones wait at least 6 seconds apart so he is not nagged */
 function cheer(kind, force) {
   if (S.coach === false) return;
   const now = Date.now();
   if (!force && now - COACH.lastAt < 6000) return;
-  const text = pickMsg(kind); if (!text) return;
+  const tpl = pickMsg(kind); if (!tpl) return;
+  const text = tpl.replace(/\{n\}/g, nick());
+  COACH.spoken = tpl.replace(/\{n\}/g, S.nickVi || nick());
   COACH.lastAt = now;
   const warn = NUDGE_KINDS.has(kind), el = coachEl();
   el.className = warn ? 'warn' : '';
@@ -1109,7 +1260,7 @@ function cheer(kind, force) {
   el.lastChild.textContent = text;
   void el.offsetWidth; el.classList.add('show');
   clearTimeout(COACH.hide); COACH.hide = setTimeout(() => el.classList.remove('show'), 4500);
-  if (S.viSpeak && viVoice()) COACH.busy = sayVi(text);
+  if (S.viSpeak && viVoice()) COACH.busy = sayVi(COACH.spoken);
   return text;
 }
 function coachRight(first) {
@@ -1145,7 +1296,7 @@ function idleFire() {
 const ACT = {
   start() { const v = $('#wname').value.trim(); S.name = v; S.skipName = !v; save(); view = 'home'; render(); },
   skipname() { S.skipName = true; save(); view = 'home'; render(); },
-  hero(t) { t.classList.remove('flex'); void t.offsetWidth; t.classList.add('flex'); say(`Hi ${kid()}! Let's learn English!`); },
+  hero(t) { t.classList.remove('flex'); void t.offsetWidth; t.classList.add('flex'); say(`Hi ${ken()}! Let's learn English!`); },
   home() { dropRec(); view = 'home'; M = null; render(); },
   practice() { dropRec(); M = null; view = 'practice'; render(); },
   spstart(t) { startSP(t.dataset.key); },
@@ -1276,20 +1427,33 @@ const ACT = {
     setTimeout(() => { if (tok === TOK) say(w); }, 500);
   },
   nextstep() { nextStep(); },
-  async chant() {
-    const tok = ++TOK;
-    document.querySelectorAll('.cw.on').forEach(el => el.classList.remove('on'));
-    for (let r = 0; r < 2; r++) for (let i = 0; i < M.cwords.length; i++) {
-      if (tok !== TOK) return;
-      const el = $('#cw' + i); if (!el) return; el.classList.add('on');
-      await say(M.cwords[i].w); await sleep(300);
-      el.classList.remove('on');
+  cwhear() { say(M.cw.w.w); },
+  cwtracedone() { M.i++; STEPS.copy(); },
+  cwtile(t) {
+    const c = M.cw; if (c.lock) return;
+    const i = +t.dataset.i;
+    c.fill.push(i); t.disabled = true;
+    document.querySelectorAll('#cwslots .sl')[c.fill.length - 1].textContent = c.tiles[i].ch;
+    if (c.fill.length === c.target.length) {
+      const word = c.fill.map(k => c.tiles[k].ch).join('');
+      if (word === c.target) cwOK($('#cwslots')); else cwMiss($('#cwslots'));
     }
+  },
+  cwclear() {
+    M.cw.fill = [];
+    document.querySelectorAll('#cwslots .sl').forEach(s => { s.textContent = ''; });
+    document.querySelectorAll('#cwtiles .ltile').forEach(b => { b.disabled = false; });
+  },
+  cwcheck() {
+    const c = M.cw; if (c.lock) return;
+    const inp = $('#cwtype'); if (!inp) return;
+    const v = (inp.value || '').toLowerCase().replace(/[^a-z]/g, '');
+    if (v === c.target) cwOK(inp); else cwMiss(inp);
   },
   sayword(t) { say(t.dataset.w); },
   clearink() { const k = $('#ink'); if (k && k._clear) k._clear(); },
   inkdone() { award(1); M.i++; if (M.i >= 2) nextStep(); else STEPS.letter(); },
-  saytalk() { say(M.talk[M.i][0].replace('{kid}', kid())); },
+  saytalk() { say(M.talk[M.i][0].replace('{kid}', ken())); },
   talkdone() { award(1); M.i++; if (M.i >= M.talk.length) nextStep(); else STEPS.talk(); },
   hear() { say(M.q[M.qi].say); },
   pick(t) {
@@ -1307,15 +1471,20 @@ const ACT = {
     }
   },
   coachpreview(t) { const pn = $('#pnick'); if (pn) S.nick = pn.value.trim(); const pc = $('#pcoach'); if (pc) S.coach = pc.value !== 'off'; const pp = $('#ppraise'), pd = $('#pnudge'); const lines = v => String(v || '').split('\n').map(x => x.trim()).filter(Boolean); if (pp) S.praise = lines(pp.value); if (pd) S.nudge = lines(pd.value); cheer(t.dataset.k, true); },
+  sayname() { const pe = $('#pnameen'), pn = $('#pname'); say('Hi ' + ((pe && pe.value.trim()) || (pn && pn.value.trim()) || ken()) + '! Great job!'); },
+  saynamevi() { const pk = $('#pnickvi'), pn = $('#pnick'); sayVi(((pk && pk.value.trim()) || (pn && pn.value.trim()) || nick()) + ' yêu giỏi quá!'); },
   testvoice() { S.rate = +$('#prate').value; const pv = $('#pvoice'); if (pv) S.voice = pv.value; say('Hello! This is how I sound.'); },
   reset(t) {
     if (!resetArmed) { resetArmed = 1; t.textContent = 'Bấm lần nữa để xóa tất cả'; setTimeout(() => { resetArmed = 0; const b = $('#reset'); if (b) b.textContent = 'Xóa toàn bộ tiến độ'; }, 4000); return; }
     resetArmed = 0; const name = S.name; S = { ...fresh(), name }; save(); ACT.closepanel(null, true);
   },
+  /* only an explicit true skips saving: the click handler passes the click event as the second argument */
   closepanel(t, skipRead) {
-    if (!skipRead) { const n = $('#pname'), r = $('#prate'); if (n) { S.name = n.value.trim(); S.skipName = !S.name; } if (r) S.rate = +r.value; const wr = $('#pwrite'); if (wr) S.write = wr.value; const pv = $('#pvoice'); if (pv) S.voice = pv.value;
+    if (skipRead !== true) { const n = $('#pname'), r = $('#prate'); if (n) { S.name = n.value.trim(); S.skipName = !S.name; } if (r) S.rate = +r.value; const wr = $('#pwrite'); if (wr) S.write = wr.value; const pv = $('#pvoice'); if (pv) S.voice = pv.value;
     const lines = v => String(v || '').split('\n').map(x => x.trim()).filter(Boolean).slice(0, 20);
     const pn = $('#pnick'); if (pn) S.nick = pn.value.trim();
+    const pe = $('#pnameen'); if (pe) S.nameEn = pe.value.trim();
+    const pk = $('#pnickvi'); if (pk) S.nickVi = pk.value.trim();
     const pc = $('#pcoach'); if (pc) S.coach = pc.value !== 'off';
     const pp = $('#ppraise'); if (pp) S.praise = lines(pp.value);
     const pd = $('#pnudge'); if (pd) S.nudge = lines(pd.value); const vs = $('#pvi'); if (vs && !vs.disabled) S.viSpeak = vs.value === 'on'; const c = $('#pcheck'); if (c) { S.check = c.value; REC.denied = false; REC.srBroken = false; REC.srOnly = false; } save(); }
@@ -1332,6 +1501,7 @@ document.addEventListener('click', e => {
 document.addEventListener('keydown', e => {
   if (e.key !== 'Enter') return;
   if (e.target.id === 'wname') ACT.start();
+  if (e.target.id === 'cwtype') ACT.cwcheck();
   if (e.target.id === 'wtype') { if (M && M.type === 'sp') ACT.spcheck(); else ACT.wcheck(); }
 });
 
